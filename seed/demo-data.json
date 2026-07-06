@@ -1,0 +1,1025 @@
+{
+  "meta": {
+    "dataset_name": "Signal Commons deterministic fictional demo dataset",
+    "is_demo": true,
+    "warning": "Every company, signal, and source in this file is fictional. Display a Demo data notice wherever these records are rendered.",
+    "generated_for": "UI development and workflow testing",
+    "as_of": "2026-07-04"
+  },
+  "sectors": [
+    {
+      "slug": "politics-civic-technology",
+      "name": "Politics & Civic Technology",
+      "icon_key": "civic-dome",
+      "display_order": 1
+    },
+    {
+      "slug": "government-operations",
+      "name": "Government Operations",
+      "icon_key": "government-building",
+      "display_order": 2
+    },
+    {
+      "slug": "agriculture",
+      "name": "Agriculture",
+      "icon_key": "sprout",
+      "display_order": 3
+    },
+    {
+      "slug": "healthcare",
+      "name": "Healthcare",
+      "icon_key": "medical-cross",
+      "display_order": 4
+    },
+    {
+      "slug": "education",
+      "name": "Education",
+      "icon_key": "graduation-cap",
+      "display_order": 5
+    },
+    {
+      "slug": "nonprofits",
+      "name": "Nonprofits",
+      "icon_key": "joined-hands",
+      "display_order": 6
+    },
+    {
+      "slug": "climate-energy",
+      "name": "Climate & Energy",
+      "icon_key": "wind-sun",
+      "display_order": 7
+    }
+  ],
+  "companies": [
+    {
+      "id": "demo-company-1-1",
+      "slug": "civiclens-demo",
+      "name": "CivicLens Demo",
+      "summary": "Turns public proceedings into searchable, explainable policy records.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in politics & civic technology without presenting demo content as fact.",
+      "company_type": "agent_enabled",
+      "stage": "discovery",
+      "primary_sector_slug": "politics-civic-technology",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-1-2",
+      "slug": "ballotbridge-demo",
+      "name": "BallotBridge Demo",
+      "summary": "Organizes public election information into accessible voter guides.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in politics & civic technology without presenting demo content as fact.",
+      "company_type": "ai_application",
+      "stage": "early_deployment",
+      "primary_sector_slug": "politics-civic-technology",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-1-3",
+      "slug": "publicsignal-demo",
+      "name": "PublicSignal Demo",
+      "summary": "Detects changes across public notices and legislative records.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in politics & civic technology without presenting demo content as fact.",
+      "company_type": "agent_product",
+      "stage": "emerging",
+      "primary_sector_slug": "politics-civic-technology",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-2-1",
+      "slug": "permitflow-demo",
+      "name": "PermitFlow Demo",
+      "summary": "Supports local permitting intake and case routing.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in government operations without presenting demo content as fact.",
+      "company_type": "agent_product",
+      "stage": "discovery",
+      "primary_sector_slug": "government-operations",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-2-2",
+      "slug": "county-pilot-demo",
+      "name": "County Pilot Demo",
+      "summary": "Helps public agencies coordinate resident service requests.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in government operations without presenting demo content as fact.",
+      "company_type": "agent_enabled",
+      "stage": "early_deployment",
+      "primary_sector_slug": "government-operations",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-2-3",
+      "slug": "service-map-demo",
+      "name": "ServiceMap Demo",
+      "summary": "Maps government programs and eligibility pathways.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in government operations without presenting demo content as fact.",
+      "company_type": "ai_application",
+      "stage": "emerging",
+      "primary_sector_slug": "government-operations",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-3-1",
+      "slug": "agriscout-demo",
+      "name": "AgriScout Demo",
+      "summary": "Combines field observations and satellite data for smaller farms.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in agriculture without presenting demo content as fact.",
+      "company_type": "agent_enabled",
+      "stage": "discovery",
+      "primary_sector_slug": "agriculture",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-3-2",
+      "slug": "soilwise-demo",
+      "name": "SoilWise Demo",
+      "summary": "Assists growers with soil-monitoring decisions and documentation.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in agriculture without presenting demo content as fact.",
+      "company_type": "agent_product",
+      "stage": "early_deployment",
+      "primary_sector_slug": "agriculture",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-3-3",
+      "slug": "harvestops-demo",
+      "name": "HarvestOps Demo",
+      "summary": "Coordinates harvest planning and labor-intensive farm workflows.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in agriculture without presenting demo content as fact.",
+      "company_type": "agent_native",
+      "stage": "emerging",
+      "primary_sector_slug": "agriculture",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-4-1",
+      "slug": "clinic-copilot-demo",
+      "name": "ClinicCoPilot Demo",
+      "summary": "Supports administrative workflows for safety-net clinics.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in healthcare without presenting demo content as fact.",
+      "company_type": "agent_product",
+      "stage": "discovery",
+      "primary_sector_slug": "healthcare",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-4-2",
+      "slug": "medscribe-demo",
+      "name": "MedScribe Demo",
+      "summary": "Drafts clinical documentation for human review.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in healthcare without presenting demo content as fact.",
+      "company_type": "agent_enabled",
+      "stage": "early_deployment",
+      "primary_sector_slug": "healthcare",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-4-3",
+      "slug": "careaccess-demo",
+      "name": "CareAccess Demo",
+      "summary": "Helps patients navigate fragmented care and benefit resources.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in healthcare without presenting demo content as fact.",
+      "company_type": "ai_application",
+      "stage": "emerging",
+      "primary_sector_slug": "healthcare",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-5-1",
+      "slug": "learnwell-demo",
+      "name": "LearnWell Demo",
+      "summary": "Supports personalized learning interventions for educators.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in education without presenting demo content as fact.",
+      "company_type": "agent_enabled",
+      "stage": "discovery",
+      "primary_sector_slug": "education",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-5-2",
+      "slug": "teachtrack-demo",
+      "name": "TeachTrack Demo",
+      "summary": "Helps districts review early intervention and program signals.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in education without presenting demo content as fact.",
+      "company_type": "ai_application",
+      "stage": "early_deployment",
+      "primary_sector_slug": "education",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-5-3",
+      "slug": "campusguide-demo",
+      "name": "CampusGuide Demo",
+      "summary": "Guides students through institutional processes and resources.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in education without presenting demo content as fact.",
+      "company_type": "agent_product",
+      "stage": "emerging",
+      "primary_sector_slug": "education",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-6-1",
+      "slug": "grantbridge-demo",
+      "name": "GrantBridge Demo",
+      "summary": "Matches nonprofit needs with relevant grant opportunities.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in nonprofits without presenting demo content as fact.",
+      "company_type": "agent_product",
+      "stage": "discovery",
+      "primary_sector_slug": "nonprofits",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-6-2",
+      "slug": "missionops-demo",
+      "name": "MissionOps Demo",
+      "summary": "Automates repeatable operations for small nonprofit teams.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in nonprofits without presenting demo content as fact.",
+      "company_type": "agent_native",
+      "stage": "early_deployment",
+      "primary_sector_slug": "nonprofits",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-6-3",
+      "slug": "volunteer-signal-demo",
+      "name": "VolunteerSignal Demo",
+      "summary": "Improves volunteer matching and retention analysis.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in nonprofits without presenting demo content as fact.",
+      "company_type": "ai_application",
+      "stage": "emerging",
+      "primary_sector_slug": "nonprofits",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-7-1",
+      "slug": "gridpilot-demo",
+      "name": "GridPilot Demo",
+      "summary": "Forecasts local grid stress from operational signals.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in climate & energy without presenting demo content as fact.",
+      "company_type": "agent_enabled",
+      "stage": "discovery",
+      "primary_sector_slug": "climate-energy",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-7-2",
+      "slug": "carbonroute-demo",
+      "name": "CarbonRoute Demo",
+      "summary": "Supports emissions-aware logistics planning.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in climate & energy without presenting demo content as fact.",
+      "company_type": "agent_product",
+      "stage": "early_deployment",
+      "primary_sector_slug": "climate-energy",
+      "is_demo": true,
+      "publication_status": "published"
+    },
+    {
+      "id": "demo-company-7-3",
+      "slug": "heatwatch-demo",
+      "name": "HeatWatch Demo",
+      "summary": "Surfaces neighborhood heat-risk and response information.",
+      "why_it_matters": "This fictional example demonstrates how Signal Commons explains potential relevance in climate & energy without presenting demo content as fact.",
+      "company_type": "ai_application",
+      "stage": "emerging",
+      "primary_sector_slug": "climate-energy",
+      "is_demo": true,
+      "publication_status": "published"
+    }
+  ],
+  "source_documents": [
+    {
+      "id": "demo-source-1-1",
+      "canonical_url": "https://example.com/signal-commons-demo/civiclens-demo",
+      "source_title": "Fictional evidence packet for CivicLens Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-01-10T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-1-2",
+      "canonical_url": "https://example.com/signal-commons-demo/ballotbridge-demo",
+      "source_title": "Fictional evidence packet for BallotBridge Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-01-11T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-1-3",
+      "canonical_url": "https://example.com/signal-commons-demo/publicsignal-demo",
+      "source_title": "Fictional evidence packet for PublicSignal Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-01-12T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-2-1",
+      "canonical_url": "https://example.com/signal-commons-demo/permitflow-demo",
+      "source_title": "Fictional evidence packet for PermitFlow Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-02-10T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-2-2",
+      "canonical_url": "https://example.com/signal-commons-demo/county-pilot-demo",
+      "source_title": "Fictional evidence packet for County Pilot Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-02-11T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-2-3",
+      "canonical_url": "https://example.com/signal-commons-demo/service-map-demo",
+      "source_title": "Fictional evidence packet for ServiceMap Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-02-12T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-3-1",
+      "canonical_url": "https://example.com/signal-commons-demo/agriscout-demo",
+      "source_title": "Fictional evidence packet for AgriScout Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-03-10T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-3-2",
+      "canonical_url": "https://example.com/signal-commons-demo/soilwise-demo",
+      "source_title": "Fictional evidence packet for SoilWise Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-03-11T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-3-3",
+      "canonical_url": "https://example.com/signal-commons-demo/harvestops-demo",
+      "source_title": "Fictional evidence packet for HarvestOps Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-03-12T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-4-1",
+      "canonical_url": "https://example.com/signal-commons-demo/clinic-copilot-demo",
+      "source_title": "Fictional evidence packet for ClinicCoPilot Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-04-10T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-4-2",
+      "canonical_url": "https://example.com/signal-commons-demo/medscribe-demo",
+      "source_title": "Fictional evidence packet for MedScribe Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-04-11T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-4-3",
+      "canonical_url": "https://example.com/signal-commons-demo/careaccess-demo",
+      "source_title": "Fictional evidence packet for CareAccess Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-04-12T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-5-1",
+      "canonical_url": "https://example.com/signal-commons-demo/learnwell-demo",
+      "source_title": "Fictional evidence packet for LearnWell Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-05-10T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-5-2",
+      "canonical_url": "https://example.com/signal-commons-demo/teachtrack-demo",
+      "source_title": "Fictional evidence packet for TeachTrack Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-05-11T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-5-3",
+      "canonical_url": "https://example.com/signal-commons-demo/campusguide-demo",
+      "source_title": "Fictional evidence packet for CampusGuide Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-05-12T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-6-1",
+      "canonical_url": "https://example.com/signal-commons-demo/grantbridge-demo",
+      "source_title": "Fictional evidence packet for GrantBridge Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-06-10T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-6-2",
+      "canonical_url": "https://example.com/signal-commons-demo/missionops-demo",
+      "source_title": "Fictional evidence packet for MissionOps Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-06-11T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-6-3",
+      "canonical_url": "https://example.com/signal-commons-demo/volunteer-signal-demo",
+      "source_title": "Fictional evidence packet for VolunteerSignal Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-06-12T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-7-1",
+      "canonical_url": "https://example.com/signal-commons-demo/gridpilot-demo",
+      "source_title": "Fictional evidence packet for GridPilot Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-01-10T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-7-2",
+      "canonical_url": "https://example.com/signal-commons-demo/carbonroute-demo",
+      "source_title": "Fictional evidence packet for CarbonRoute Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-01-11T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    },
+    {
+      "id": "demo-source-7-3",
+      "canonical_url": "https://example.com/signal-commons-demo/heatwatch-demo",
+      "source_title": "Fictional evidence packet for HeatWatch Demo",
+      "publisher": "Signal Commons Demo Dataset",
+      "source_type": "demo_fixture",
+      "source_tier": "demo",
+      "published_at": "2026-01-12T12:00:00Z",
+      "retrieved_at": "2026-07-04T12:00:00Z",
+      "is_demo": true
+    }
+  ],
+  "signals": [
+    {
+      "id": "demo-signal-1-1",
+      "company_id": "demo-company-1-1",
+      "signal_type": "product_launch",
+      "headline": "Demo product workflow announced",
+      "summary": "A fictional product launch is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-01-10T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "high",
+      "verification_status": "verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-1-1",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-1-2",
+      "company_id": "demo-company-1-2",
+      "signal_type": "pilot_program",
+      "headline": "Demo pilot entered review",
+      "summary": "A fictional pilot program is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-01-11T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "medium",
+      "verification_status": "partially_verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-1-2",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-1-3",
+      "company_id": "demo-company-1-3",
+      "signal_type": "partnership",
+      "headline": "Demo partnership signal recorded",
+      "summary": "A fictional partnership is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-01-12T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "low",
+      "verification_status": "unverified",
+      "publication_status": "draft",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-1-3",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-2-1",
+      "company_id": "demo-company-2-1",
+      "signal_type": "product_launch",
+      "headline": "Demo product workflow announced",
+      "summary": "A fictional product launch is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-02-10T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "high",
+      "verification_status": "verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-2-1",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-2-2",
+      "company_id": "demo-company-2-2",
+      "signal_type": "pilot_program",
+      "headline": "Demo pilot entered review",
+      "summary": "A fictional pilot program is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-02-11T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "medium",
+      "verification_status": "partially_verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-2-2",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-2-3",
+      "company_id": "demo-company-2-3",
+      "signal_type": "partnership",
+      "headline": "Demo partnership signal recorded",
+      "summary": "A fictional partnership is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-02-12T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "low",
+      "verification_status": "unverified",
+      "publication_status": "draft",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-2-3",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-3-1",
+      "company_id": "demo-company-3-1",
+      "signal_type": "product_launch",
+      "headline": "Demo product workflow announced",
+      "summary": "A fictional product launch is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-03-10T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "high",
+      "verification_status": "verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-3-1",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-3-2",
+      "company_id": "demo-company-3-2",
+      "signal_type": "pilot_program",
+      "headline": "Demo pilot entered review",
+      "summary": "A fictional pilot program is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-03-11T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "medium",
+      "verification_status": "partially_verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-3-2",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-3-3",
+      "company_id": "demo-company-3-3",
+      "signal_type": "partnership",
+      "headline": "Demo partnership signal recorded",
+      "summary": "A fictional partnership is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-03-12T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "low",
+      "verification_status": "unverified",
+      "publication_status": "draft",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-3-3",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-4-1",
+      "company_id": "demo-company-4-1",
+      "signal_type": "product_launch",
+      "headline": "Demo product workflow announced",
+      "summary": "A fictional product launch is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-04-10T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "high",
+      "verification_status": "verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-4-1",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-4-2",
+      "company_id": "demo-company-4-2",
+      "signal_type": "pilot_program",
+      "headline": "Demo pilot entered review",
+      "summary": "A fictional pilot program is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-04-11T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "medium",
+      "verification_status": "partially_verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-4-2",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-4-3",
+      "company_id": "demo-company-4-3",
+      "signal_type": "partnership",
+      "headline": "Demo partnership signal recorded",
+      "summary": "A fictional partnership is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-04-12T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "low",
+      "verification_status": "unverified",
+      "publication_status": "draft",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-4-3",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-5-1",
+      "company_id": "demo-company-5-1",
+      "signal_type": "product_launch",
+      "headline": "Demo product workflow announced",
+      "summary": "A fictional product launch is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-05-10T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "high",
+      "verification_status": "verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-5-1",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-5-2",
+      "company_id": "demo-company-5-2",
+      "signal_type": "pilot_program",
+      "headline": "Demo pilot entered review",
+      "summary": "A fictional pilot program is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-05-11T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "medium",
+      "verification_status": "partially_verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-5-2",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-5-3",
+      "company_id": "demo-company-5-3",
+      "signal_type": "partnership",
+      "headline": "Demo partnership signal recorded",
+      "summary": "A fictional partnership is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-05-12T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "low",
+      "verification_status": "unverified",
+      "publication_status": "draft",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-5-3",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-6-1",
+      "company_id": "demo-company-6-1",
+      "signal_type": "product_launch",
+      "headline": "Demo product workflow announced",
+      "summary": "A fictional product launch is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-06-10T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "high",
+      "verification_status": "verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-6-1",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-6-2",
+      "company_id": "demo-company-6-2",
+      "signal_type": "pilot_program",
+      "headline": "Demo pilot entered review",
+      "summary": "A fictional pilot program is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-06-11T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "medium",
+      "verification_status": "partially_verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-6-2",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-6-3",
+      "company_id": "demo-company-6-3",
+      "signal_type": "partnership",
+      "headline": "Demo partnership signal recorded",
+      "summary": "A fictional partnership is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-06-12T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "low",
+      "verification_status": "unverified",
+      "publication_status": "draft",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-6-3",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-7-1",
+      "company_id": "demo-company-7-1",
+      "signal_type": "product_launch",
+      "headline": "Demo product workflow announced",
+      "summary": "A fictional product launch is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-01-10T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "high",
+      "verification_status": "verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-7-1",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-7-2",
+      "company_id": "demo-company-7-2",
+      "signal_type": "pilot_program",
+      "headline": "Demo pilot entered review",
+      "summary": "A fictional pilot program is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-01-11T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "medium",
+      "verification_status": "partially_verified",
+      "publication_status": "published",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-7-2",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    },
+    {
+      "id": "demo-signal-7-3",
+      "company_id": "demo-company-7-3",
+      "signal_type": "partnership",
+      "headline": "Demo partnership signal recorded",
+      "summary": "A fictional partnership is included to exercise the research and evidence interface.",
+      "why_it_matters": "It provides a safe deterministic record for testing evidence labels, timelines, filters, and review states.",
+      "occurred_at": "2026-01-12T12:00:00Z",
+      "detected_at": "2026-07-04T12:00:00Z",
+      "evidence_strength": "low",
+      "verification_status": "unverified",
+      "publication_status": "draft",
+      "is_demo": true,
+      "created_by_type": "import",
+      "evidence": [
+        {
+          "source_document_id": "demo-source-7-3",
+          "support_type": "supports",
+          "claim_type": "analysis",
+          "supporting_passage": "This is intentionally fictional demo evidence and must not be represented as a real-world claim."
+        }
+      ]
+    }
+  ]
+}
