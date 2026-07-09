@@ -196,6 +196,30 @@ Record new decisions here with date, context, choice, and consequence.
 
 **Consequence:** Same reasoning as D-030 — required sections stay honest about what is and isn't backed by real data, consistent with "visible uncertainty before false precision."
 
+### D-033 — Playwright added now, reversing the Milestone 2 deferral
+
+**Choice:** Playwright smoke tests were added in this small follow-up milestone (2.1), specifically to regression-protect the public route chain and the draft/unknown-signal 404 boundary before Milestone 3 replaces the JSON-repository data layer with Supabase. Chromium only, dev-dependency only (`@playwright/test`); the one-time browser-binary download is build/test tooling (same category as D-024's font fetch), not a live/runtime external call.
+
+**Consequence:** The e2e fixtures in `e2e/smoke.spec.ts` (company slugs, signal ids, sector names) are coupled to the current `seed/demo-data.json`. This file should be revisited during the Milestone 3 Supabase/data-layer swap, since the underlying data source — and potentially some ids/slugs — may change.
+
+### D-034 — Playwright specs live in `e2e/`, explicitly separated from Vitest
+
+**Choice:** Playwright specs live in a dedicated `e2e/` directory, not `tests/` (which stays Vitest-only). `vitest.config.ts` was updated to explicitly scope Vitest's `include` to `tests/**/*.{test,spec}.{ts,tsx}` and `exclude` `e2e/**` (and `node_modules/**`), rather than relying on Vitest's default glob to happen not to match Playwright specs.
+
+**Consequence:** `npm test` (Vitest) and `npm run test:e2e` (Playwright) cannot collide or accidentally pick up each other's spec files, regardless of future default-glob changes in either tool.
+
+### D-035 — Playwright runs the production build on an explicit, dedicated port
+
+**Choice:** Playwright's `webServer` runs the real production build via `npm run build && npm run start -- -p 3100` — the port is passed explicitly as a CLI flag to `next start`, not left to `next start`'s default (3000), since a developer's own `next dev` may already be using 3000 (this exact conflict happened earlier in this project's session).
+
+**Consequence:** The e2e suite exercises actual build output on a collision-free port; `baseURL` in `playwright.config.ts` points at the same explicit port.
+
+### D-036 — `npm run test:e2e` stays separate from `npm test`
+
+**Choice:** `npm run test:e2e` (Playwright) is a separate command from `npm test` (Vitest) — e2e specs are not bundled into the fast unit/component suite.
+
+**Consequence:** `npm test` stays fast or CI-cheap; the full quality gate for changes touching routing/navigation is the existing four commands plus this fifth, run separately.
+
 ## Intentionally deferred decisions
 
 - First live connector
