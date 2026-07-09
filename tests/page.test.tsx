@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Home from "@/app/page";
 
+/**
+ * SiteHeader/DemoDataBanner/SiteFooter moved into the root layout
+ * (src/app/layout.tsx) in Milestone 2 (docs/DECISIONS.md D-029), so this
+ * page-level test no longer covers them directly — see
+ * tests/components/DemoDataBanner.test.tsx and
+ * tests/components/SiteFooter.test.tsx instead.
+ */
 describe("Home (dashboard)", () => {
-  it("renders the demo-data notice", () => {
-    render(<Home />);
-    expect(screen.getByText(/demo data:/i)).toBeInTheDocument();
-    expect(screen.getByText(/fictional and for demonstration only/i)).toBeInTheDocument();
-    expect(screen.getByText(/this dashboard is not live monitoring/i)).toBeInTheDocument();
-  });
-
   it("renders the mission heading", () => {
     render(<Home />);
     expect(
@@ -32,11 +32,6 @@ describe("Home (dashboard)", () => {
     expect(screen.getByText("Politics & Civic Technology")).toBeInTheDocument();
     expect(screen.getByText("Climate & Energy")).toBeInTheDocument();
     expect(screen.getAllByText(/3 companies/).length).toBe(7);
-  });
-
-  it("renders the footer", () => {
-    render(<Home />);
-    expect(screen.getByText("signalcommons.org")).toBeInTheDocument();
   });
 
   it("never renders draft signal content publicly", () => {

@@ -1,12 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { EvidenceStrengthBadge } from "@/components/evidence/EvidenceStrengthBadge";
 import { getRecentlyEmerging } from "@/lib/data/dashboard";
-
-const SIGNAL_TYPE_LABELS: Record<string, string> = {
-  product_launch: "Product launch",
-  pilot_program: "Pilot program",
-  partnership: "Partnership",
-};
+import { getSignalTypeLabel } from "@/lib/content/labels";
 
 export function RecentlyEmerging() {
   const items = getRecentlyEmerging(5);
@@ -36,7 +31,7 @@ export function RecentlyEmerging() {
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-gray">
                 {sector ? <span>{sector.name}</span> : null}
                 <span aria-hidden="true">&middot;</span>
-                <span>{SIGNAL_TYPE_LABELS[signal.signal_type] ?? signal.signal_type}</span>
+                <span>{getSignalTypeLabel(signal.signal_type)}</span>
               </div>
             </li>
           ))}

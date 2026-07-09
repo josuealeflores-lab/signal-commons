@@ -46,8 +46,28 @@ export function getDraftSignals(): Signal[] {
   return demoData.signals.filter((signal) => signal.publication_status === "draft");
 }
 
+/**
+ * Returns undefined for a draft signal's id exactly as it does for a
+ * nonexistent id — the two are indistinguishable from the outside, so a
+ * caller (e.g. /signals/[id]) can safely call notFound() either way
+ * without leaking which case it was.
+ */
+export function getPublishedSignalById(id: string): Signal | undefined {
+  return getPublishedSignals().find((signal) => signal.id === id);
+}
+
+export function getPublishedSignalsForCompany(companyId: string): Signal[] {
+  return getPublishedSignals().filter((signal) => signal.company_id === companyId);
+}
+
 export function getSourceDocumentById(id: string): SourceDocument | undefined {
   return demoData.source_documents.find((doc) => doc.id === id);
+}
+
+export function getSourceDocumentsForSignal(signal: Signal): SourceDocument[] {
+  return signal.evidence
+    .map((evidence) => getSourceDocumentById(evidence.source_document_id))
+    .filter((doc): doc is SourceDocument => doc !== undefined);
 }
 
 export function getCompanySector(company: Company): Sector | undefined {

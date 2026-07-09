@@ -148,6 +148,54 @@ Record new decisions here with date, context, choice, and consequence.
 
 **Consequence:** Consistent Inter rendering for every visitor regardless of their system fonts, with no new runtime external dependency.
 
+### D-025 — Signal detail routes use raw signal IDs
+
+**Choice:** `/signals/[id]` uses the signal's raw `id` in the URL (e.g. `/signals/demo-signal-6-2`) since `signals[]` has no `slug` field in the seed schema, unlike sectors/companies.
+
+**Consequence:** Signal URLs expose internal-looking ids rather than pretty slugs. Adding real slugs would require a seed-data schema change, out of scope without separate approval.
+
+### D-026 — Filter options derived from the loaded dataset
+
+**Choice:** Filter option lists (signal types, company types) are derived at runtime via `getAvailableSignalTypes()`/`getAvailableCompanyTypes()`, not hardcoded from the full documented taxonomies in `docs/PRODUCT_REQUIREMENTS.md`.
+
+**Consequence:** Avoids offering filter options with zero possible matches (e.g. `signal_type: "partnership"` only ever occurs on the always-draft N-3 signal position, so it correctly never appears as a public filter option).
+
+### D-027 — Server-rendered URL searchParams filtering
+
+**Choice:** Filters/search/sort on `/companies` and `/signals` (and the company-type/evidence-strength filters on `/sectors/[slug]`) are implemented entirely as URL `searchParams` read by server components + plain GET `<form>`s.
+
+**Consequence:** There is no client-side filtering/explorer component and no client-side filter state anywhere. All actual data filtering happens server-side via `browse.ts` functions; filtering works with JavaScript disabled and produces shareable/bookmarkable URLs.
+
+### D-028 — NavLink client component only for active nav state
+
+**Choice:** `NavLink.tsx` is a new client component, added solely because a persistent root-layout header has no other way to know the current route than `usePathname()`.
+
+**Consequence:** It exists only to set `aria-current="page"` on the matching nav link and has nothing to do with filtering. After Milestone 2, the client component inventory is exactly two: the pre-existing `MobileNavToggle` (unchanged) and this new `NavLink`.
+
+### D-029 — Shared layout lifted into root layout
+
+**Choice:** `SiteHeader`/`DemoDataBanner`/skip-link/`SiteFooter` lifted from `app/page.tsx` into the root `app/layout.tsx`.
+
+**Consequence:** Removes duplication across 8 routes and guarantees the demo-data banner appears on every route, including the new 404 page, automatically.
+
+### D-030 — Company "What to watch next" uses honest empty state
+
+**Choice:** The company profile's "What to watch next" section renders an honest empty state ("No watch items are recorded for this demo company yet") rather than fabricated content, since `seed/demo-data.json` has no `company_watch_items` data at all despite `docs/DATA_MODEL.md` documenting that entity.
+
+**Consequence:** The required section is present on every company profile, but never implies data that doesn't exist.
+
+### D-031 — Playwright deferred
+
+**Choice:** Playwright smoke tests are deferred past Milestone 2 despite `CLAUDE.md`'s "add once core routes exist" guidance technically now applying.
+
+**Consequence:** Kept as a distinct, explicitly-approved follow-up step rather than bundled into an already-large milestone. True end-to-end 404/navigation verification (e.g. that `notFound()` actually renders the branded 404 page) is deferred to that step; Milestone 2's own tests instead verify the underlying "draft/unknown → undefined" data behavior at the `browse.ts`/`repository.ts` unit-test level.
+
+### D-032 — No fabricated sector descriptions or "workflows being changed"
+
+**Choice:** `docs/PRODUCT_REQUIREMENTS.md`'s sector-detail requirements list a "plain-language sector definition" and "workflows being changed," but `sectors[]` in the seed schema has no `description` field and no such data exists anywhere. The sector detail page instead shows a factual, product-principle-grounded line ("One of the seven sectors Signal Commons tracks with equal prominence") rather than inventing sector-specific marketing copy; "workflows being changed" is omitted entirely rather than fabricated.
+
+**Consequence:** Same reasoning as D-030 — required sections stay honest about what is and isn't backed by real data, consistent with "visible uncertainty before false precision."
+
 ## Intentionally deferred decisions
 
 - First live connector

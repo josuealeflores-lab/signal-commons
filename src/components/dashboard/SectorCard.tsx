@@ -1,10 +1,17 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { SectorIcon } from "@/components/dashboard/SectorIcon";
 import type { SectorOverviewItem } from "@/lib/data/dashboard";
 
-export function SectorCard({ item }: { item: SectorOverviewItem }) {
+export interface SectorCardProps {
+  item: SectorOverviewItem;
+  /** When provided, the whole card links to the sector detail page. */
+  href?: string;
+}
+
+export function SectorCard({ item, href }: SectorCardProps) {
   const { sector, companyCount } = item;
-  return (
+  const content = (
     <Card className="flex flex-col items-center gap-2 text-center">
       <span
         aria-hidden="true"
@@ -18,4 +25,13 @@ export function SectorCard({ item }: { item: SectorOverviewItem }) {
       </span>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-teal">
+        {content}
+      </Link>
+    );
+  }
+  return content;
 }
