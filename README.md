@@ -34,3 +34,19 @@ Build a deployed, responsive vertical slice that includes:
 ## Important scope rule
 
 Do not begin with automated scraping, market prediction, an opaque company ranking, Kubernetes, or a multi-service architecture. Build the trustworthy research-and-review foundation first.
+
+## Local development
+
+The application is a Next.js (App Router) + TypeScript project scaffolded in `src/`. This scaffold (Milestone 0) intentionally has no dashboard, Supabase, or auth wired up yet — see `docs/BUILD_PLAN.md`.
+
+```bash
+npm install
+
+npm run dev        # start the dev server at http://localhost:3000
+npm run lint        # ESLint
+npm run typecheck   # tsc --noEmit (strict mode)
+npm test            # Vitest + React Testing Library (jsdom)
+npm run build       # production build
+```
+
+Copy `.env.example` to `.env.local` and fill in values once Supabase/Claude credentials are introduced (not required for Milestone 0).

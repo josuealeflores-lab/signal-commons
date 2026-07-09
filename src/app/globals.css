@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f2f4f7;
+  --foreground: #101828;
+
+  /* Brand tokens — docs/DESIGN_SYSTEM.md color palette (verbatim hex values) */
+  --color-deep-teal: #0e5e5b;
+  --color-indigo-navy: #1b2a6b;
+  --color-soft-green: #4caf7d;
+  --color-warm-gold: #f2b735;
+  --color-light-gray: #f2f4f7;
+  --color-slate-gray: #6b7280;
+  --color-ink: #101828;
+  --color-surface: #ffffff;
+  --color-border-subtle: #dfe5ec;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-deep-teal: var(--color-deep-teal);
+  --color-indigo-navy: var(--color-indigo-navy);
+  --color-soft-green: var(--color-soft-green);
+  --color-warm-gold: var(--color-warm-gold);
+  --color-light-gray: var(--color-light-gray);
+  --color-slate-gray: var(--color-slate-gray);
+  --color-ink: var(--color-ink);
+  --color-surface: var(--color-surface);
+  --color-border-subtle: var(--color-border-subtle);
+  --font-sans: var(--font-inter);
+}
+
+/*
+ * Intentionally light-only for Milestone 1: docs/DESIGN_SYSTEM.md's
+ * reference mockup and palette are light-mode only, with no documented
+ * dark-mode token set. Rather than partially inverting (background flips
+ * dark while brand text tokens stay fixed at their light-mode values,
+ * producing low-contrast dark-on-dark text), the page stays on the
+ * approved light dashboard direction regardless of system color-scheme
+ * preference until a real dark palette is designed and approved.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}

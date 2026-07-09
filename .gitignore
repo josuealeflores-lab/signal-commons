@@ -1,8 +1,14 @@
 .DS_Store
 node_modules/
 .next/
+out/
 coverage/
 *.log
+*.tsbuildinfo
+.vercel
+playwright-report/
+test-results/
+blob-report/
 .env
 .env.local
 .env.development.local
