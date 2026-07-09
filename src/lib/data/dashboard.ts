@@ -1,11 +1,4 @@
-import {
-  getCompanies,
-  getCompaniesBySector,
-  getCompanySector,
-  getMeta,
-  getPublishedSignals,
-  getSectors,
-} from "./repository";
+import { getCompanies, getCompaniesBySector, getMeta, getPublishedSignals, getSectors } from "./repository";
 import type { Company, Sector, Signal } from "./schema";
 
 function dayOfYear(isoDate: string): number {
@@ -35,13 +28,17 @@ export interface KpiSummary {
  * status. The other three KPIs are strictly gated to published signals
  * only (docs/DECISIONS.md D-021).
  */
-export function getKpiSummary(): KpiSummary {
-  const publishedSignals = getPublishedSignals();
+export async function getKpiSummary(): Promise<KpiSummary> {
+  const [companies, publishedSignals, sectors] = await Promise.all([
+    getCompanies(),
+    getPublishedSignals(),
+    getSectors(),
+  ]);
   return {
-    companyProfiles: getCompanies().length,
+    companyProfiles: companies.length,
     publishedSignals: publishedSignals.length,
     highConfidenceSignals: publishedSignals.filter((s) => s.evidence_strength === "high").length,
-    sectorsCovered: getSectors().length,
+    sectorsCovered: sectors.length,
   };
 }
 
@@ -51,10 +48,17 @@ export interface SectorOverviewItem {
 }
 
 /** Uses the full company roster, not signal-gated — see getKpiSummary doc comment. */
-export function getSectorOverview(): SectorOverviewItem[] {
-  return getSectors().map((sector) => ({
+export async function getSectorOverview(): Promise<SectorOverviewItem[]> {
+  const [sectors, companies] = await Promise.all([getSectors(), getCompanies()]);
+
+  const countBySectorSlug = new Map<string, number>();
+  for (const company of companies) {
+    countBySectorSlug.set(company.primary_sector_slug, (countBySectorSlug.get(company.primary_sector_slug) ?? 0) + 1);
+  }
+
+  return sectors.map((sector) => ({
     sector,
-    companyCount: getCompaniesBySector(sector.slug).length,
+    companyCount: countBySectorSlug.get(sector.slug) ?? 0,
   }));
 }
 
@@ -70,22 +74,25 @@ export interface EmergingSignalView {
  * "Recently Emerging" (D-018) since the fixed seed dates don't fall within
  * a literal trailing-7-day window of meta.as_of.
  */
-export function getRecentlyEmerging(limit = 5): EmergingSignalView[] {
-  const companiesById = new Map(getCompanies().map((c) => [c.id, c]));
+export async function getRecentlyEmerging(limit = 5): Promise<EmergingSignalView[]> {
+  const [companies, publishedSignals, sectors] = await Promise.all([getCompanies(), getPublishedSignals(), getSectors()]);
+  const companiesById = new Map(companies.map((c) => [c.id, c]));
+  const sectorsBySlug = new Map(sectors.map((sector) => [sector.slug, sector]));
 
-  return getPublishedSignals()
+  const sorted = publishedSignals
     .filter((signal) => companiesById.has(signal.company_id))
     .slice()
     .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1))
-    .slice(0, limit)
-    .map((signal) => {
-      const company = companiesById.get(signal.company_id) as Company;
-      return {
-        signal,
-        company,
-        sector: getCompanySector(company),
-      };
-    });
+    .slice(0, limit);
+
+  return sorted.map((signal) => {
+    const company = companiesById.get(signal.company_id) as Company;
+    return {
+      signal,
+      company,
+      sector: sectorsBySlug.get(company.primary_sector_slug),
+    };
+  });
 }
 
 export interface ActivityBucket {
@@ -94,9 +101,10 @@ export interface ActivityBucket {
 }
 
 /** Monthly counts of PUBLISHED signals only, sorted chronologically. */
-export function getActivitySeries(): ActivityBucket[] {
+export async function getActivitySeries(): Promise<ActivityBucket[]> {
+  const publishedSignals = await getPublishedSignals();
   const counts = new Map<string, number>();
-  for (const signal of getPublishedSignals()) {
+  for (const signal of publishedSignals) {
     const bucket = monthBucket(signal.occurred_at);
     counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
   }
@@ -125,14 +133,15 @@ const STILL_MISSING_NOTES: Partial<Record<string, string>> = {
  * company). "What's still missing" uses a generic, source-grounded
  * template — never invented per-company specifics (D-024 review point 6).
  */
-export function getCompanySpotlight(): CompanySpotlightView | undefined {
-  const sectors = getSectors();
-  const meta = getMeta();
+export async function getCompanySpotlight(): Promise<CompanySpotlightView | undefined> {
+  const [sectors, meta] = await Promise.all([getSectors(), getMeta()]);
   const sectorIndex = dayOfYear(meta.as_of) % sectors.length;
   const sector = sectors[sectorIndex];
 
-  const sectorCompanies = getCompaniesBySector(sector.slug);
-  const publishedSignals = getPublishedSignals();
+  const [sectorCompanies, publishedSignals] = await Promise.all([
+    getCompaniesBySector(sector.slug),
+    getPublishedSignals(),
+  ]);
 
   for (const company of sectorCompanies) {
     const signal = publishedSignals.find(

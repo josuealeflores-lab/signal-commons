@@ -14,7 +14,7 @@ interface SectorDetailPageProps {
 
 export async function generateMetadata({ params }: SectorDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const view = getSectorDetailView(slug);
+  const view = await getSectorDetailView(slug);
   if (!view) return {};
   return {
     title: `${view.sector.name} — Signal Commons`,
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: SectorDetailPageProps): Promi
 
 export default async function SectorDetailPage({ params, searchParams }: SectorDetailPageProps) {
   const { slug } = await params;
-  const view = getSectorDetailView(slug);
+  const view = await getSectorDetailView(slug);
   if (!view) notFound();
 
   const { companyType, evidenceStrength } = await searchParams;

@@ -27,7 +27,11 @@ export default async function CompaniesIndexPage({ searchParams }: CompaniesInde
   const sortKey: CompanySortKey = params.sort === "sector" ? "sector" : "name";
   const hasActiveFilters = Boolean(params.q || params.sector || params.companyType || params.evidenceStrength);
 
-  const allViews = getCompanyViews();
+  const [allViews, sectors, companyTypes] = await Promise.all([
+    getCompanyViews(),
+    getSectors(),
+    getAvailableCompanyTypes(),
+  ]);
   const filtered = filterCompanyViews(allViews, {
     q: params.q,
     sector: params.sector,
@@ -48,8 +52,8 @@ export default async function CompaniesIndexPage({ searchParams }: CompaniesInde
 
         <div className="mt-6">
           <CompanyFilterForm
-            sectors={getSectors()}
-            companyTypes={getAvailableCompanyTypes()}
+            sectors={sectors}
+            companyTypes={companyTypes}
             values={{ ...params, sort: sortKey }}
           />
         </div>

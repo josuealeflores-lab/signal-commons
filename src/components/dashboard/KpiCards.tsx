@@ -1,8 +1,8 @@
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { getKpiSummary } from "@/lib/data/dashboard";
 
-export function KpiCards() {
-  const summary = getKpiSummary();
+export async function KpiCards() {
+  const summary = await getKpiSummary();
   return (
     <section aria-label="Key metrics" className="px-4 sm:px-6">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 lg:grid-cols-4">

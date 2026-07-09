@@ -7,8 +7,8 @@ import { getSectorOverview } from "@/lib/data/dashboard";
  * D-001). The list is sorted only by display_order, a fixed taxonomy
  * ordering, not by any activity/ranking metric.
  */
-export function SectorOverview() {
-  const items = getSectorOverview();
+export async function SectorOverview() {
+  const items = await getSectorOverview();
   return (
     <section aria-labelledby="sector-overview-heading" className="px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-6xl">

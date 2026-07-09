@@ -1,80 +1,110 @@
 import { describe, expect, it } from "vitest";
-import {
-  filterCompanyViews,
-  filterSignalViews,
-  getAvailableCompanyTypes,
-  getAvailableMonths,
-  getAvailableSignalTypes,
-  getCompanyView,
-  getCompanyViews,
-  getSectorDetailView,
-  getSignalView,
-  getSignalViews,
-  sortCompanyViews,
-} from "@/lib/data/browse";
+import { filterCompanyViews, filterSignalViews, sortCompanyViews } from "@/lib/data/browse";
+import type { CompanyView, SignalView } from "@/lib/data/browse";
+import type { Company, Sector, Signal } from "@/lib/data/schema";
 
-describe("getCompanyViews", () => {
-  it("returns all 21 companies", () => {
-    expect(getCompanyViews()).toHaveLength(21);
-  });
+/**
+ * These tests exercise only the pure, synchronous functions in browse.ts
+ * (filterCompanyViews, filterSignalViews, sortCompanyViews) — the ones
+ * that never touch Supabase — using small hand-built fixture arrays, so
+ * they stay fully hermetic under `npm test`. Every other function in
+ * browse.ts now queries the live database and is covered by
+ * `npm run test:db` integration tests instead.
+ */
 
-  it("gives a company with a published signal a non-empty signals array", () => {
-    const view = getCompanyView("civiclens-demo");
-    expect(view?.signals).toHaveLength(1);
-    expect(view?.primarySignal?.publication_status).toBe("published");
-  });
+const healthcareSector: Sector = {
+  slug: "healthcare",
+  name: "Healthcare",
+  icon_key: "medical-cross",
+  display_order: 4,
+};
 
-  it("gives a draft-only company an empty signals array — the draft never reaches the view", () => {
-    const view = getCompanyView("publicsignal-demo");
-    expect(view?.signals).toEqual([]);
-    expect(view?.primarySignal).toBeUndefined();
-  });
+const educationSector: Sector = {
+  slug: "education",
+  name: "Education",
+  icon_key: "graduation-cap",
+  display_order: 5,
+};
 
-  it("getCompanyView returns undefined for an unknown slug", () => {
-    expect(getCompanyView("does-not-exist")).toBeUndefined();
-  });
-});
+function makeCompany(overrides: Partial<Company>): Company {
+  return {
+    id: "demo-company-x",
+    slug: "demo-company-x",
+    name: "Demo Company X",
+    summary: "A fictional demo company summary.",
+    why_it_matters: "A fictional why-it-matters statement.",
+    company_type: "ai_application",
+    stage: "discovery",
+    primary_sector_slug: "healthcare",
+    is_demo: true,
+    publication_status: "published",
+    ...overrides,
+  };
+}
 
-describe("getSignalViews / getSignalView", () => {
-  it("returns exactly 14 published signals, zero drafts", () => {
-    const views = getSignalViews();
-    expect(views).toHaveLength(14);
-    for (const view of views) {
-      expect(view.signal.publication_status).toBe("published");
-    }
-  });
+function makeSignal(overrides: Partial<Signal>): Signal {
+  return {
+    id: "demo-signal-x",
+    company_id: "demo-company-x",
+    signal_type: "product_launch",
+    headline: "Demo headline",
+    summary: "Demo summary",
+    why_it_matters: "Demo why it matters",
+    occurred_at: "2026-01-10T12:00:00Z",
+    detected_at: "2026-07-04T12:00:00Z",
+    evidence_strength: "high",
+    verification_status: "verified",
+    publication_status: "published",
+    is_demo: true,
+    created_by_type: "import",
+    evidence: [
+      {
+        source_document_id: "demo-source-x",
+        support_type: "supports",
+        claim_type: "analysis",
+        supporting_passage: "Demo passage.",
+      },
+    ],
+    ...overrides,
+  };
+}
 
-  it("getSignalView returns undefined for a draft id and for a nonexistent id alike", () => {
-    expect(getSignalView("demo-signal-1-3")).toBeUndefined();
-    expect(getSignalView("demo-signal-does-not-exist")).toBeUndefined();
-  });
+function makeCompanyView(overrides: Partial<CompanyView> & { company: Company }): CompanyView {
+  return {
+    sector: healthcareSector,
+    signals: [],
+    primarySignal: undefined,
+    ...overrides,
+  };
+}
 
-  it("getSignalView returns the joined view for a known published id, with resolved sources", () => {
-    const view = getSignalView("demo-signal-1-1");
-    expect(view?.company.id).toBe("demo-company-1-1");
-    expect(view?.sector?.slug).toBe("politics-civic-technology");
-    expect(view?.sources.length).toBeGreaterThan(0);
-  });
-});
-
-describe("getSectorDetailView", () => {
-  it("returns 3 companies for every sector", () => {
-    const view = getSectorDetailView("healthcare");
-    expect(view?.companies).toHaveLength(3);
-  });
-
-  it("returns undefined for an unknown sector slug", () => {
-    expect(getSectorDetailView("not-a-sector")).toBeUndefined();
-  });
-});
+function makeSignalView(overrides: Partial<SignalView> & { signal: Signal; company: Company }): SignalView {
+  return {
+    sector: healthcareSector,
+    sources: [],
+    ...overrides,
+  };
+}
 
 describe("filterCompanyViews", () => {
-  const all = getCompanyViews();
+  const civicLens = makeCompanyView({
+    company: makeCompany({ id: "c1", slug: "civiclens-demo", name: "CivicLens Demo", primary_sector_slug: "healthcare" }),
+    primarySignal: makeSignal({ evidence_strength: "high" }),
+  });
+  const agriScout = makeCompanyView({
+    company: makeCompany({ id: "c2", slug: "agriscout-demo", name: "AgriScout Demo", primary_sector_slug: "education" }),
+    sector: educationSector,
+    primarySignal: makeSignal({ evidence_strength: "medium" }),
+  });
+  const noSignalYet = makeCompanyView({
+    company: makeCompany({ id: "c3", slug: "no-signal-demo", name: "No Signal Demo", primary_sector_slug: "healthcare" }),
+    primarySignal: undefined,
+  });
+  const all = [civicLens, agriScout, noSignalYet];
 
   it("filters by sector", () => {
     const filtered = filterCompanyViews(all, { sector: "healthcare" });
-    expect(filtered).toHaveLength(3);
-    expect(filtered.every((v) => v.company.primary_sector_slug === "healthcare")).toBe(true);
+    expect(filtered.map((v) => v.company.slug)).toEqual(["civiclens-demo", "no-signal-demo"]);
   });
 
   it("filters by search query against name/summary", () => {
@@ -84,61 +114,56 @@ describe("filterCompanyViews", () => {
 
   it("filters by evidence strength, excluding companies with no published signal", () => {
     const filtered = filterCompanyViews(all, { evidenceStrength: "high" });
-    // one "high" company per sector = 7
-    expect(filtered).toHaveLength(7);
-    expect(filtered.some((v) => v.company.slug === "publicsignal-demo")).toBe(false);
+    expect(filtered.map((v) => v.company.slug)).toEqual(["civiclens-demo"]);
+    expect(filtered.some((v) => v.company.slug === "no-signal-demo")).toBe(false);
   });
 });
 
 describe("filterSignalViews", () => {
-  const all = getSignalViews();
+  const healthcareSignal = makeSignalView({
+    signal: makeSignal({ id: "s1", verification_status: "verified" }),
+    company: makeCompany({ id: "c1", primary_sector_slug: "healthcare" }),
+    sector: healthcareSector,
+  });
+  const educationSignal = makeSignalView({
+    signal: makeSignal({ id: "s2", verification_status: "partially_verified" }),
+    company: makeCompany({ id: "c2", primary_sector_slug: "education" }),
+    sector: educationSector,
+  });
+  const all = [healthcareSignal, educationSignal];
 
-  it("filters signals to a single sector's 2 published signals", () => {
+  it("filters signals by sector", () => {
     const filtered = filterSignalViews(all, { sector: "healthcare" });
-    expect(filtered).toHaveLength(2);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].signal.id).toBe("s1");
   });
 
   it("filters by verification status", () => {
     const filtered = filterSignalViews(all, { verificationStatus: "verified" });
-    expect(filtered).toHaveLength(7);
-  });
-});
-
-describe("getAvailableSignalTypes / getAvailableCompanyTypes / getAvailableMonths", () => {
-  it("only returns values actually present in the published dataset", () => {
-    // "partnership" only ever occurs on the N-3 (always-draft) signal position,
-    // so it correctly never appears here — getAvailableSignalTypes is derived
-    // from getSignalViews(), which is published-only.
-    expect(getAvailableSignalTypes()).toEqual(["pilot_program", "product_launch"]);
-    expect(getAvailableCompanyTypes()).toEqual([
-      "agent_enabled",
-      "agent_native",
-      "agent_product",
-      "ai_application",
-    ]);
-    expect(getAvailableMonths()).toEqual([
-      "2026-01",
-      "2026-02",
-      "2026-03",
-      "2026-04",
-      "2026-05",
-      "2026-06",
-    ]);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].signal.id).toBe("s1");
   });
 });
 
 describe("sortCompanyViews", () => {
-  const all = getCompanyViews();
+  const zCompany = makeCompanyView({
+    company: makeCompany({ id: "c1", slug: "z-demo", name: "Z Demo", primary_sector_slug: "education" }),
+    sector: educationSector,
+  });
+  const aCompany = makeCompanyView({
+    company: makeCompany({ id: "c2", slug: "a-demo", name: "A Demo", primary_sector_slug: "healthcare" }),
+    sector: healthcareSector,
+  });
+  const all = [zCompany, aCompany];
 
   it("sorts alphabetically by name", () => {
     const sorted = sortCompanyViews(all, "name");
-    const names = sorted.map((v) => v.company.name);
-    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+    expect(sorted.map((v) => v.company.name)).toEqual(["A Demo", "Z Demo"]);
   });
 
   it("sorts by sector display_order, then name within sector", () => {
     const sorted = sortCompanyViews(all, "sector");
-    expect(sorted[0].sector?.slug).toBe("politics-civic-technology");
-    expect(sorted[sorted.length - 1].sector?.slug).toBe("climate-energy");
+    // healthcare (display_order 4) comes before education (display_order 5)
+    expect(sorted.map((v) => v.sector?.slug)).toEqual(["healthcare", "education"]);
   });
 });

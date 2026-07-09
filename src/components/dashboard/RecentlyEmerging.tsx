@@ -3,8 +3,8 @@ import { EvidenceStrengthBadge } from "@/components/evidence/EvidenceStrengthBad
 import { getRecentlyEmerging } from "@/lib/data/dashboard";
 import { getSignalTypeLabel } from "@/lib/content/labels";
 
-export function RecentlyEmerging() {
-  const items = getRecentlyEmerging(5);
+export async function RecentlyEmerging() {
+  const items = await getRecentlyEmerging(5);
 
   return (
     <Card as="section" aria-labelledby="recently-emerging-heading">

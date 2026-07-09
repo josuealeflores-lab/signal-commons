@@ -7,7 +7,8 @@ import { VerificationStatusBadge } from "@/components/evidence/VerificationStatu
 import { SourceList } from "@/components/evidence/SourceList";
 import { getCompanyTypeLabel } from "@/lib/content/labels";
 import { getCompanyView } from "@/lib/data/browse";
-import { getSourceDocumentsForSignal } from "@/lib/data/repository";
+import { getSourceDocumentsByIds } from "@/lib/data/repository";
+import type { SourceDocument } from "@/lib/data/schema";
 
 interface CompanyDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -15,7 +16,7 @@ interface CompanyDetailPageProps {
 
 export async function generateMetadata({ params }: CompanyDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const view = getCompanyView(slug);
+  const view = await getCompanyView(slug);
   if (!view) return {};
   return {
     title: `${view.company.name} — Signal Commons`,
@@ -25,10 +26,27 @@ export async function generateMetadata({ params }: CompanyDetailPageProps): Prom
 
 export default async function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const { slug } = await params;
-  const view = getCompanyView(slug);
+  const view = await getCompanyView(slug);
   if (!view) notFound();
 
   const { company, sector, signals } = view;
+
+  // Batched: one round trip for every source_document needed across this
+  // company's signals, instead of one round trip per signal
+  // (docs/DECISIONS.md D-050).
+  const allSourceIds = [
+    ...new Set(signals.flatMap((signal) => signal.evidence.map((evidence) => evidence.source_document_id))),
+  ];
+  const allSources = await getSourceDocumentsByIds(allSourceIds);
+  const sourcesById = new Map(allSources.map((doc) => [doc.id, doc]));
+  const sourcesBySignalId = new Map(
+    signals.map((signal) => [
+      signal.id,
+      signal.evidence
+        .map((evidence) => sourcesById.get(evidence.source_document_id))
+        .filter((doc): doc is SourceDocument => doc !== undefined),
+    ]),
+  );
 
   return (
     <section className="px-4 py-10 sm:px-6">
@@ -71,7 +89,7 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
                   </div>
                   <p className="mt-1 text-sm text-slate-gray">{signal.summary}</p>
                   <div className="mt-3">
-                    <SourceList signal={signal} sources={getSourceDocumentsForSignal(signal)} />
+                    <SourceList signal={signal} sources={sourcesBySignalId.get(signal.id) ?? []} />
                   </div>
                 </li>
               ))}

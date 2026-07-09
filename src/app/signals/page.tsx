@@ -28,7 +28,12 @@ export default async function SignalsIndexPage({ searchParams }: SignalsIndexPag
     params.sector || params.signalType || params.month || params.evidenceStrength || params.verificationStatus,
   );
 
-  const allViews = getSignalViews();
+  const [allViews, sectors, signalTypes, months] = await Promise.all([
+    getSignalViews(),
+    getSectors(),
+    getAvailableSignalTypes(),
+    getAvailableMonths(),
+  ]);
   const filtered = filterSignalViews(allViews, {
     sector: params.sector,
     signalType: params.signalType,
@@ -47,12 +52,7 @@ export default async function SignalsIndexPage({ searchParams }: SignalsIndexPag
         </p>
 
         <div className="mt-6">
-          <SignalFilterForm
-            sectors={getSectors()}
-            signalTypes={getAvailableSignalTypes()}
-            months={getAvailableMonths()}
-            values={params}
-          />
+          <SignalFilterForm sectors={sectors} signalTypes={signalTypes} months={months} values={params} />
         </div>
 
         {hasActiveFilters ? (

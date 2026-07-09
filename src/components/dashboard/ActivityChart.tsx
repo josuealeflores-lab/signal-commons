@@ -14,8 +14,8 @@ const CHART_WIDTH = 320;
 const CHART_HEIGHT = 120;
 const BAR_GAP = 8;
 
-export function ActivityChart() {
-  const series = getActivitySeries();
+export async function ActivityChart() {
+  const series = await getActivitySeries();
   const maxCount = Math.max(1, ...series.map((bucket) => bucket.count));
   const barWidth = series.length > 0 ? (CHART_WIDTH - BAR_GAP * (series.length - 1)) / series.length : 0;
 

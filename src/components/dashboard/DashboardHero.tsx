@@ -9,8 +9,8 @@ function formatAsOf(isoDate: string): string {
   });
 }
 
-export function DashboardHero() {
-  const meta = getMeta();
+export async function DashboardHero() {
+  const meta = await getMeta();
   return (
     <section className="px-4 py-10 sm:px-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

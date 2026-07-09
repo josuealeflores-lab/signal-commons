@@ -1,12 +1,4 @@
-import {
-  getCompanies,
-  getCompaniesBySector,
-  getCompanySector,
-  getPublishedSignals,
-  getPublishedSignalsForCompany,
-  getSectorBySlug,
-  getSourceDocumentsForSignal,
-} from "./repository";
+import { getCompanies, getPublishedSignals, getSectorBySlug, getSectors, getSourceDocumentsByIds } from "./repository";
 import type { Company, EvidenceStrength, Sector, Signal, SourceDocument, VerificationStatus } from "./schema";
 
 /**
@@ -14,12 +6,17 @@ import type { Company, EvidenceStrength, Sector, Signal, SourceDocument, Verific
  * (/sectors, /companies, /signals). Kept separate from dashboard.ts, which
  * is specifically shaped for the dashboard's own widgets.
  *
- * Public-safe rule (docs/DECISIONS.md D-021, unchanged from Milestone 1):
- * company existence uses the full published-company roster; every
- * signal-derived field is gated to getPublishedSignals() only. A company
- * whose only signal is a draft simply has an empty `signals` array here —
- * the draft data structurally never reaches these views, not just hidden
- * by a conditional.
+ * Public-safe rule (docs/DECISIONS.md D-021/D-041): company existence uses
+ * the full published-company roster; every signal-derived field is gated
+ * to getPublishedSignals() only, which itself can only ever return
+ * published rows (RLS-enforced). A company whose only signal is a draft
+ * simply has an empty `signals` array here — the draft data structurally
+ * never reaches these views, not just hidden by a conditional.
+ *
+ * Batched by design (docs/DECISIONS.md D-050): every function here fetches
+ * each related table at most once per call (companies, published signals,
+ * sectors, source_documents), then joins them in memory via lookup maps —
+ * never one round trip per company/signal in a loop.
  */
 
 function monthBucket(isoDate: string): string {
@@ -36,22 +33,35 @@ export interface CompanyView {
   primarySignal: Signal | undefined;
 }
 
-export function getCompanyViews(): CompanyView[] {
-  return getCompanies().map((company) => {
-    const signals = getPublishedSignalsForCompany(company.id)
+export async function getCompanyViews(): Promise<CompanyView[]> {
+  const [companies, publishedSignals, sectors] = await Promise.all([getCompanies(), getPublishedSignals(), getSectors()]);
+
+  const sectorsBySlug = new Map(sectors.map((sector) => [sector.slug, sector]));
+  const signalsByCompanyId = new Map<string, Signal[]>();
+  for (const signal of publishedSignals) {
+    const existing = signalsByCompanyId.get(signal.company_id);
+    if (existing) {
+      existing.push(signal);
+    } else {
+      signalsByCompanyId.set(signal.company_id, [signal]);
+    }
+  }
+
+  return companies.map((company) => {
+    const signals = (signalsByCompanyId.get(company.id) ?? [])
       .slice()
       .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1));
     return {
       company,
-      sector: getCompanySector(company),
+      sector: sectorsBySlug.get(company.primary_sector_slug),
       signals,
       primarySignal: signals[0],
     };
   });
 }
 
-export function getCompanyView(slug: string): CompanyView | undefined {
-  return getCompanyViews().find((view) => view.company.slug === slug);
+export async function getCompanyView(slug: string): Promise<CompanyView | undefined> {
+  return (await getCompanyViews()).find((view) => view.company.slug === slug);
 }
 
 export interface SignalView {
@@ -62,20 +72,31 @@ export interface SignalView {
 }
 
 /** Published signals only (14) — never includes a draft. */
-export function getSignalViews(): SignalView[] {
-  const companiesById = new Map(getCompanies().map((c) => [c.id, c]));
+export async function getSignalViews(): Promise<SignalView[]> {
+  const [companies, publishedSignals, sectors] = await Promise.all([getCompanies(), getPublishedSignals(), getSectors()]);
+  const companiesById = new Map(companies.map((c) => [c.id, c]));
+  const sectorsBySlug = new Map(sectors.map((sector) => [sector.slug, sector]));
 
-  return getPublishedSignals()
-    .filter((signal) => companiesById.has(signal.company_id))
-    .map((signal) => {
-      const company = companiesById.get(signal.company_id) as Company;
-      return {
-        signal,
-        company,
-        sector: getCompanySector(company),
-        sources: getSourceDocumentsForSignal(signal),
-      };
-    });
+  const relevant = publishedSignals.filter((signal) => companiesById.has(signal.company_id));
+
+  const allSourceIds = [
+    ...new Set(relevant.flatMap((signal) => signal.evidence.map((evidence) => evidence.source_document_id))),
+  ];
+  const allSources = await getSourceDocumentsByIds(allSourceIds);
+  const sourcesById = new Map(allSources.map((doc) => [doc.id, doc]));
+
+  return relevant.map((signal) => {
+    const company = companiesById.get(signal.company_id) as Company;
+    const sources = signal.evidence
+      .map((evidence) => sourcesById.get(evidence.source_document_id))
+      .filter((doc): doc is SourceDocument => doc !== undefined);
+    return {
+      signal,
+      company,
+      sector: sectorsBySlug.get(company.primary_sector_slug),
+      sources,
+    };
+  });
 }
 
 /**
@@ -83,8 +104,8 @@ export function getSignalViews(): SignalView[] {
  * behavior, so /signals/[id] can call notFound() in both cases without
  * distinguishing them.
  */
-export function getSignalView(id: string): SignalView | undefined {
-  return getSignalViews().find((view) => view.signal.id === id);
+export async function getSignalView(id: string): Promise<SignalView | undefined> {
+  return (await getSignalViews()).find((view) => view.signal.id === id);
 }
 
 export interface SectorDetailView {
@@ -92,12 +113,12 @@ export interface SectorDetailView {
   companies: CompanyView[];
 }
 
-export function getSectorDetailView(slug: string): SectorDetailView | undefined {
-  const sector = getSectorBySlug(slug);
+export async function getSectorDetailView(slug: string): Promise<SectorDetailView | undefined> {
+  const sector = await getSectorBySlug(slug);
   if (!sector) return undefined;
 
-  const companyIds = new Set(getCompaniesBySector(slug).map((c) => c.id));
-  const companies = getCompanyViews().filter((view) => companyIds.has(view.company.id));
+  const allCompanyViews = await getCompanyViews();
+  const companies = allCompanyViews.filter((view) => view.company.primary_sector_slug === slug);
   return { sector, companies };
 }
 
@@ -108,6 +129,7 @@ export interface CompanyFilters {
   evidenceStrength?: EvidenceStrength;
 }
 
+/** Pure — operates only on already-fetched arrays, no data access of its own. */
 export function filterCompanyViews(views: CompanyView[], filters: CompanyFilters): CompanyView[] {
   const q = filters.q?.trim().toLowerCase();
   return views.filter((view) => {
@@ -132,6 +154,7 @@ export interface SignalFilters {
   verificationStatus?: VerificationStatus;
 }
 
+/** Pure — operates only on already-fetched arrays, no data access of its own. */
 export function filterSignalViews(views: SignalView[], filters: SignalFilters): SignalView[] {
   return views.filter((view) => {
     if (filters.sector && view.company.primary_sector_slug !== filters.sector) return false;
@@ -146,23 +169,27 @@ export function filterSignalViews(views: SignalView[], filters: SignalFilters): 
 }
 
 /** Derived from the loaded dataset, not hardcoded (docs/DECISIONS.md D-026). */
-export function getAvailableSignalTypes(): string[] {
-  return [...new Set(getSignalViews().map((view) => view.signal.signal_type))].sort();
+export async function getAvailableSignalTypes(): Promise<string[]> {
+  return [...new Set((await getSignalViews()).map((view) => view.signal.signal_type))].sort();
 }
 
 /** Derived from the loaded dataset, not hardcoded (docs/DECISIONS.md D-026). */
-export function getAvailableCompanyTypes(): string[] {
-  return [...new Set(getCompanies().map((company) => company.company_type))].sort();
+export async function getAvailableCompanyTypes(): Promise<string[]> {
+  return [...new Set((await getCompanies()).map((company) => company.company_type))].sort();
 }
 
 /** Derived from the loaded dataset's actual signal months. */
-export function getAvailableMonths(): string[] {
-  return [...new Set(getSignalViews().map((view) => monthBucket(view.signal.occurred_at)))].sort();
+export async function getAvailableMonths(): Promise<string[]> {
+  return [...new Set((await getSignalViews()).map((view) => monthBucket(view.signal.occurred_at)))].sort();
 }
 
 export type CompanySortKey = "name" | "sector";
 
-/** Only two options, each with a visible caption in the UI (PRODUCT_REQUIREMENTS "sorting with an explicit explanation"). */
+/**
+ * Pure — operates only on an already-fetched array. Only two options, each
+ * with a visible caption in the UI (PRODUCT_REQUIREMENTS "sorting with an
+ * explicit explanation").
+ */
 export function sortCompanyViews(views: CompanyView[], sortKey: CompanySortKey): CompanyView[] {
   const sorted = [...views];
   if (sortKey === "sector") {

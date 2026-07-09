@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   description: "All seven sectors Signal Commons tracks, with equal prominence.",
 };
 
-export default function SectorsIndexPage() {
-  const items = getSectorOverview();
+export default async function SectorsIndexPage() {
+  const items = await getSectorOverview();
 
   return (
     <section className="px-4 py-10 sm:px-6">

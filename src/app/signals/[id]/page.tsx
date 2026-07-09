@@ -19,7 +19,7 @@ interface SignalDetailPageProps {
  */
 export async function generateMetadata({ params }: SignalDetailPageProps): Promise<Metadata> {
   const { id } = await params;
-  const view = getSignalView(id);
+  const view = await getSignalView(id);
   if (!view) return {};
   return {
     title: `${view.signal.headline} — Signal Commons`,
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: SignalDetailPageProps): Promi
 
 export default async function SignalDetailPage({ params }: SignalDetailPageProps) {
   const { id } = await params;
-  const view = getSignalView(id);
+  const view = await getSignalView(id);
   if (!view) notFound();
 
   const { signal, company, sector, sources } = view;

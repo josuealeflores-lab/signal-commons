@@ -220,6 +220,96 @@ Record new decisions here with date, context, choice, and consequence.
 
 **Consequence:** `npm test` stays fast or CI-cheap; the full quality gate for changes touching routing/navigation is the existing four commands plus this fifth, run separately.
 
+### D-037 — Hosted dev Supabase project created via the Supabase MCP connector
+
+**Choice:** Used the Supabase MCP connector (`create_project`/`apply_migration`) to provision and migrate a hosted dev project, rather than the local Supabase CLI/Docker.
+
+**Consequence:** Matches `docs/TECHNICAL_ARCHITECTURE.md`'s minimal-path guidance and avoids a Docker dependency; the MCP connector was already integrated in this environment.
+
+### D-038 — Migration scope is 7 tables
+
+**Choice:** `sectors`, `companies`, `company_sectors`, `source_documents`, `signals`, `signal_evidence`, and a new `app_meta` table (replacing the JSON `meta` object).
+
+**Consequence:** `company_aliases`, `company_watch_items`, `research_items`, `review_actions`, `ingestion_runs` are deferred to the milestones that actually use them (Milestone 4+), not created speculatively now.
+
+### D-039 — Migrations include the full documented column list per in-scope table
+
+**Choice:** Each of the 7 tables includes `docs/DATA_MODEL.md`'s full documented columns, including several nullable fields unused by the app today (`legal_name`, `website_url`, `founded_year`, `event_date`, `content_hash`, `excerpt`, `storage_path`).
+
+**Consequence:** The TypeScript domain layer (`src/lib/data/schema.ts`) continues to project only the subset the app actually uses; the schema doesn't need re-migration when those fields are wired up later.
+
+### D-040 — Existing string ids preserved as literal TEXT primary keys
+
+**Choice:** Ids like `"demo-company-1-1"`/`"demo-signal-6-2"` stay as literal `TEXT` primary keys, not UUIDs. `signal_evidence` (the one table with no JSON-native id) gets a deterministic id, `` `${signal.id}-ev-${index}` ``, not a random UUID.
+
+**Consequence:** D-025's raw-id `/signals/[id]` routing and every existing test fixture id keep working unchanged; re-seeding is naturally idempotent instead of producing duplicate `signal_evidence` rows.
+
+### D-041 — RLS design: anon gets SELECT-only, dual-gated by publication status
+
+**Choice:** The anon role gets SELECT-only policies: `sectors` (all rows), `companies` (`publication_status = 'published'`), `company_sectors` (gated by the company's own `publication_status`), `signals` (published only), `signal_evidence`/`source_documents` (gated by the linked signal's `publication_status`), and `app_meta` (unconditional SELECT, no mutations). No INSERT/UPDATE/DELETE policies exist for anon on any of the 7 tables. The `company_sectors` partial unique index (`is_primary` per company) enforces "at most one" primary sector at the DB level; "exactly one per published company" is a seed-validation and `test:db` guarantee, not a DB constraint.
+
+**Consequence:** Draft content, and anything derived only from draft content, is structurally unreachable by the anon client regardless of application-code correctness; the "at most one" vs. "exactly one" distinction is documented rather than silently assumed.
+
+### D-042 — Reviewer-role RLS policies deferred to Milestone 4
+
+**Choice:** No reviewer/authenticated-role RLS policies exist yet.
+
+**Consequence:** They're added once reviewer auth exists to actually exercise and test them, avoiding untested policy code sitting in the schema.
+
+### D-043 — No Postgres VIEW database objects in Milestone 3
+
+**Choice:** "Public read views/queries" are satisfied via parameterized repository queries against tables directly (always through the anon/publishable client), not separate `VIEW` objects.
+
+**Consequence:** One less database object type to migrate/maintain; equivalent behavior achieved entirely in `repository.ts`/`dashboard.ts`/`browse.ts`.
+
+### D-044 — `server-only` added to structurally guard the service-role client module
+
+**Choice:** Added the tiny `server-only` package; `src/lib/supabase/service-client.ts` starts with `import "server-only"`.
+
+**Consequence:** That module throws if ever imported into client-bundled code, enforcing CLAUDE.md's #1 decision priority (credential security) at import time rather than by convention alone. Under Vitest specifically, this guard throws unconditionally (its "react-server" no-op export condition is a Next.js-bundler behavior that Vitest does not replicate — confirmed directly by testing `resolve.conditions: ["react-server"]` in `vitest.integration.config.ts`), so `tests/integration/` uses a separate, non-guarded test-only client (`tests/integration/test-service-client.ts`) instead of importing `service-client.ts`.
+
+### D-045 — New single-row `app_meta` table replaces the JSON `meta` object
+
+**Choice:** `app_meta` has one row (`id int primary key default 1 check (id = 1)`) holding `dataset_name`, `is_demo`, `warning`, `generated_for`, `as_of`, with its own public SELECT RLS policy (no mutations).
+
+**Consequence:** `getMeta()` keeps its exact prior shape/purpose (dataset labeling, and the deterministic reference date behind Company Spotlight's rotation and the dashboard's reference-date display) while reading from Postgres through the same anon client as everything else — no special-cased access path.
+
+### D-046 — Seed execution via a Postgres RPC, not MCP/`execute_sql` or client-side transactions
+
+**Choice:** `supabase/seed.ts` validates `seed/demo-data.json` locally via `demoDataSchema`, then calls a Postgres RPC (`reseed_demo_data(payload jsonb)`, created by the initial migration) using the service-role client. The RPC deletes children-before-parents and re-inserts parents-before-children entirely inside Postgres, derives `company_sectors` from each company's `primary_sector_slug` and `signal_evidence` from each signal's embedded `evidence[]` (deterministic ids per D-040), then runs post-seed verification counts and `RAISE EXCEPTION` on any mismatch. `EXECUTE` on the RPC is revoked from `PUBLIC`/`anon`/`authenticated` and granted only to `service_role`.
+
+**Consequence:** Atomicity is a property of one Postgres function call rolling back entirely on error, not a claim that `supabase-js` table methods are transactional. No MCP tool call, `pg` dependency, or connection string is required to re-run seeding — `npm run db:seed` only needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and is runnable by anyone, anytime, outside Claude Code. (A follow-up migration added `WHERE true` to the function's bare `DELETE` statements after discovering this database enforces "DELETE requires a WHERE clause.")
+
+### D-047 — `@supabase/supabase-js` added as the only new runtime dependency
+
+**Choice:** Added `@supabase/supabase-js`; `@supabase/ssr` is deferred to Milestone 4 (session/cookie-based auth isn't needed until reviewer auth exists).
+
+**Consequence:** No unused auth-helper dependency sitting in the tree before it's needed.
+
+### D-048 — Data-layer functions become async; affected components/pages become async Server Components
+
+**Choice:** Every DB-touching function in `repository.ts`/`dashboard.ts`/`browse.ts` became `async`, using the anon/publishable client exclusively, with identical function names/params/return shapes (now `Promise<T>`). The 6 dashboard components (`CompanySpotlight`, `DashboardHero`, `SectorOverview`, `ActivityChart`, `KpiCards`, `RecentlyEmerging`) and `sectors/page.tsx` became `async` Server Components; the other 5 page files already were. Pure, data-access-free functions (`filterCompanyViews`, `filterSignalViews`, `sortCompanyViews`, `COMPANY_SORT_OPTIONS`) stayed synchronous.
+
+**Consequence:** Callers didn't need to change their call sites beyond adding `await`; no component/page had to be restructured beyond that mechanical change.
+
+### D-049 — Data-layer testing is split between `npm test` and `npm run test:db`
+
+**Choice:** `npm test` stays hermetic: schema validation against the seed JSON fixture, plus pure filter/sort function tests using hand-built local fixtures (no network, no Supabase env vars required — `vitest.config.ts` explicitly excludes `tests/integration/**`). `npm run test:db` (`vitest.integration.config.ts`) runs real integration tests against the live seeded Supabase project: `public-data-reads.test.ts` exercises `repository.ts`/`dashboard.ts`/`browse.ts` through the anon client exactly as the app does; `rls.test.ts` exercises RLS and the RPC's access control directly against tables using the anon client (published-only reads, draft/source_documents/signal_evidence exclusion, the exactly-one-primary-sector guarantee, anon mutation denial, anon RPC-call denial); `seeded-counts.test.ts` is the one file that intentionally uses a service-role client (bypassing RLS is required to see draft rows at all) to verify full post-seed counts across all 7 tables. `tests/integration/setup.ts` fails fast with a clear message if required env vars are missing, without ever printing their values.
+
+**Consequence:** `npm run test:e2e` (Playwright) is operationally no longer hermetic after Milestone 3 even though its own assertions are unchanged (D-033) — it now requires a reachable, seeded Supabase project, since the app it drives reads from that database.
+
+### D-050 — Batched Supabase reads to eliminate N+1 query patterns
+
+**Choice:** The Milestone 3 data-layer rewrite (D-048) preserved function-level `async` shapes but, in several places, translated an old in-memory per-item loop directly into a per-item network round trip: `getCompanyViews()` and `getSignalViews()` (`browse.ts`) called a per-company/per-signal repository function inside `.map()`; `getSectorOverview()` and `getRecentlyEmerging()` (`dashboard.ts`) did the same per sector/signal; the company detail page fetched each signal's sources one at a time. Measured directly against the live seeded project, this made `/sectors/healthcare` take ~9.7s and `/signals` ~9.0s to render, and caused 5 of 8 Playwright smoke tests to fail on timeout. Fixed by having each function fetch every needed table **at most once**, then join in memory: `getCompanyViews()`/`getSignalViews()`/`getRecentlyEmerging()` now fetch `companies`, `getPublishedSignals()`, and `getSectors()` once each and build `Map`-based lookups (by `company_id`/`sector.slug`) instead of looping awaits; `getSectorOverview()` counts companies per sector from one `getCompanies()` call instead of one `getCompaniesBySector()` call per sector; source-document lookups across many signals now go through a new batched `getSourceDocumentsByIds(ids)` (a single `.in("id", ids)` query) instead of the removed per-signal `getSourceDocumentsForSignal()`. `getSectorDetailView()` was also simplified to filter its own already-fetched `getCompanyViews()` result instead of issuing a redundant separate `getCompaniesBySector()` call. The now-fully-unused `getCompanySector()` and `getPublishedSignalsForCompany()` were deleted rather than left as dead code.
+
+**Consequence:** Every public data-layer function issues a small, fixed number of Supabase round trips regardless of how many companies/signals/sources it joins, instead of scaling with the size of the dataset. All public-safe gating (published-only companies, published-signal-only derived data, draft-id-behaves-as-unknown, draft-linked source_documents/signal_evidence never surfaced) is preserved exactly — the join logic changed, not what is fetched or how RLS gates it. Still uses only the anon/publishable client; no RLS, migration, or seed changes were needed.
+
+### D-051 — Playwright runs serially, with modestly raised timeouts, against the live Supabase-backed e2e app
+
+**Choice:** After Milestone 3, `e2e/smoke.spec.ts` drives routes that perform live Supabase reads rather than in-memory JSON lookups, so `npm run test:e2e` is no longer hermetic (D-033/D-049). The N+1 query pattern that made per-route latency severe (~9–10s) was fixed first (D-050), bringing single-request render times down to a measured 0.7–4.6s range. With Playwright's default parallelism, that remaining range still occasionally exceeded a modestly-raised `expect` timeout (15000ms) — one run saw a raw `page.goto` exceed even a 15000ms navigation timeout — while an immediate rerun passed fully, confirming this was intermittent dev-infrastructure latency (several workers concurrently hitting the one hosted dev Supabase project), not a deterministic bug. `playwright.config.ts` now sets `fullyParallel: false` and `workers: 1`, so this suite never sends concurrent Supabase-backed requests to the single dev project it depends on, removing that concurrency variable entirely; `use.navigationTimeout` is raised to 30000ms (the one observed failure was a `page.goto` timeout) and `expect.timeout` stays at 15000ms. These are conservative, targeted settings for this project's real remote-dependency constraint, not oversized/unconditional timeouts. No test assertion was weakened, removed, or skipped; no app/RLS/schema/migration code changed.
+
+**Consequence:** The existing draft-404, demo-banner, route-chain, evidence/verification-badge, and source-link-safety assertions are all unchanged and still enforced — only how long Playwright waits for them to become true increased. If e2e flakiness returns above this margin, that's a signal to look at network conditions or query performance again, not to raise the timeout further by default.
+
 ## Intentionally deferred decisions
 
 - First live connector

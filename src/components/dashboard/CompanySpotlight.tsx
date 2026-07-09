@@ -3,8 +3,8 @@ import { EvidenceStrengthBadge } from "@/components/evidence/EvidenceStrengthBad
 import { VerificationStatusBadge } from "@/components/evidence/VerificationStatusBadge";
 import { getCompanySpotlight } from "@/lib/data/dashboard";
 
-export function CompanySpotlight() {
-  const spotlight = getCompanySpotlight();
+export async function CompanySpotlight() {
+  const spotlight = await getCompanySpotlight();
 
   if (!spotlight) {
     return (
