@@ -11,10 +11,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
-    "test:e2e": "playwright test",
-    "db:seed": "node --env-file=.env.local --conditions=react-server supabase/seed.ts"
+    "test:e2e": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test",
+    "db:seed": "node --env-file=.env.local --conditions=react-server supabase/seed.ts",
+    "db:seed:reviewer": "node --env-file=.env.local --conditions=react-server supabase/seed-reviewer.ts",
+    "db:seed:queue": "node --env-file=.env.local --conditions=react-server supabase/seed-research-queue.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "2.110.1",
     "next": "16.2.10",
     "react": "19.2.4",

@@ -1,0 +1,99 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { getSessionSupabaseClient } from "@/lib/supabase/session-client";
+import { editApproveFieldsSchema, type EditApproveFields, type ReviewActionName } from "./schema";
+
+/**
+ * Thin, typed wrappers over the single submit_review_action RPC
+ * (docs/DECISIONS.md D-054) — one Server Action per action name, not one
+ * RPC per action. Always uses the session-aware client, so the RPC's own
+ * `auth.uid()` resolves to the calling reviewer, and RLS/the RPC's
+ * reviewer gate apply exactly as they would for any other authenticated
+ * request — never the service-role client.
+ *
+ * Every exported action below has the shape `(researchItemId, formData) =>
+ * Promise<void>` specifically so it can be used as
+ * `formAction={action.bind(null, researchItemId)}` on a plain <form> —
+ * Next.js's bound-server-action-in-a-form convention requires the final
+ * runtime parameter to be the submitted FormData, and the form-action prop
+ * type requires a `void`-returning function (a `Promise<T>` for a concrete
+ * `T` other than `void` is not assignable there, even though a plain
+ * non-Promise-wrapped value would be). On failure, redirects back to the
+ * research item's own page with an `error` query param, mirroring
+ * `auth/login`'s pattern.
+ */
+async function callSubmitReviewAction(
+  researchItemId: string,
+  action: ReviewActionName,
+  reviewerNote: string | null,
+  editedFields: EditApproveFields | null,
+): Promise<void> {
+  const supabase = await getSessionSupabaseClient();
+  const { error } = await supabase.rpc("submit_review_action", {
+    p_research_item_id: researchItemId,
+    p_action: action,
+    p_reviewer_note: reviewerNote,
+    p_edited_fields: editedFields,
+  });
+
+  revalidatePath("/research-queue");
+  revalidatePath(`/research-queue/${researchItemId}`);
+  revalidatePath("/reviewer");
+
+  if (error) {
+    redirect(`/research-queue/${researchItemId}?error=${encodeURIComponent(error.message)}`);
+  }
+}
+
+function noteFromFormData(formData: FormData): string | null {
+  const value = formData.get("reviewer_note");
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+export async function approveResearchItem(researchItemId: string, formData: FormData): Promise<void> {
+  await callSubmitReviewAction(researchItemId, "approve", noteFromFormData(formData), null);
+}
+
+export async function rejectResearchItem(researchItemId: string, formData: FormData): Promise<void> {
+  await callSubmitReviewAction(researchItemId, "reject", noteFromFormData(formData), null);
+}
+
+export async function requestMoreEvidence(researchItemId: string, formData: FormData): Promise<void> {
+  await callSubmitReviewAction(researchItemId, "request_evidence", noteFromFormData(formData), null);
+}
+
+export async function markDisputed(researchItemId: string, formData: FormData): Promise<void> {
+  await callSubmitReviewAction(researchItemId, "mark_disputed", noteFromFormData(formData), null);
+}
+
+export async function reopenResearchItem(researchItemId: string, formData: FormData): Promise<void> {
+  await callSubmitReviewAction(researchItemId, "reopen", noteFromFormData(formData), null);
+}
+
+/**
+ * Validates edited fields against the same allow-list the RPC hardcodes
+ * (defense-in-depth only, per D-058 — the RPC's own column list is
+ * authoritative regardless of what this validation lets through).
+ */
+export async function editAndApproveResearchItem(researchItemId: string, formData: FormData): Promise<void> {
+  const rawFields = {
+    headline: formData.get("headline"),
+    summary: formData.get("summary"),
+    why_it_matters: formData.get("why_it_matters"),
+    evidence_strength: formData.get("evidence_strength"),
+  };
+  const candidate = Object.fromEntries(
+    Object.entries(rawFields).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0,
+    ),
+  );
+
+  const parsed = editApproveFieldsSchema.safeParse(candidate);
+  if (!parsed.success) {
+    redirect(`/research-queue/${researchItemId}?error=${encodeURIComponent(parsed.error.message)}`);
+  }
+
+  await callSubmitReviewAction(researchItemId, "edit_approve", noteFromFormData(formData), parsed.data);
+}

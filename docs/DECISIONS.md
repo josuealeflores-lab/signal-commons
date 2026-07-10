@@ -310,6 +310,144 @@ Record new decisions here with date, context, choice, and consequence.
 
 **Consequence:** The existing draft-404, demo-banner, route-chain, evidence/verification-badge, and source-link-safety assertions are all unchanged and still enforced — only how long Playwright waits for them to become true increased. If e2e flakiness returns above this margin, that's a signal to look at network conditions or query performance again, not to raise the timeout further by default.
 
+### D-052 — Reviewer identity via a new `reviewer_profiles` table
+
+**Choice:** A new `reviewer_profiles` table (`id` → `auth.users(id)`, `is_active` flag), not a custom JWT claim/Auth Hook.
+
+**Consequence:** Matches the existing preference for plain, migration-tracked SQL authorization logic over out-of-band, dashboard-configured mechanisms — inspectable via `git diff`, testable with ordinary `test:db` fixtures.
+
+### D-053 — `research_items.payload` is a pointer, not staged data
+
+**Choice:** `research_items.payload` is a pointer to an already-existing draft row (`{target_table, target_id}`), not staged not-yet-inserted data — the draft row is created first (by extraction/seed), then queued for review; approval transitions the existing row's status rather than inserting a new one.
+
+**Consequence:** The `target_table` field is general (not constrained to `'signals'` at the schema level), but Milestone 4 only ever produces or acts on `target_table = 'signals'` rows — see D-058.
+
+### D-054 — One unified `submit_review_action` RPC for all 6 actions
+
+**Choice:** One unified `submit_review_action` RPC handles all 6 actions (`approve`, `edit_approve`, `reject`, `request_evidence`, `mark_disputed`, `reopen`), rather than 6 separate RPCs.
+
+**Consequence:** Mirrors `reseed_demo_data`'s established "one domain operation, one revoked-then-narrowly-granted function" pattern; all 6 actions share the same validate → snapshot → mutate → audit shape.
+
+### D-055 — `submit_review_action` granted to `authenticated`, reviewer gate first
+
+**Choice:** `submit_review_action` is granted to `authenticated` (not `service_role`, unlike `reseed_demo_data`) because it needs `auth.uid()` to resolve the calling reviewer's own session; the reviewer-only gate is enforced inside the function body via the `reviewer_profiles` check, not via the GRANT alone. This gate is the function's literal first statement, before any `research_items` lookup, `item_type` check, status check, or target-row access of any kind.
+
+**Consequence:** A non-reviewer or inactive-reviewer caller gets the identical `'not an active reviewer'` exception no matter what `p_research_item_id`/`p_action` they pass, so differing error behavior can never leak information about which ids exist, their `item_type`, or their current status to a caller who hasn't already proven they're an active reviewer.
+
+### D-056 — No RLS UPDATE grant to `authenticated`/`anon` on publication columns
+
+**Choice:** No RLS UPDATE policy is ever granted to `authenticated`/`anon` on `signals.publication_status`/`companies.publication_status`.
+
+**Consequence:** The only path to `published` is `submit_review_action`'s internal update, structurally preventing an AI/import-created draft from self-publishing (`docs/DATA_MODEL.md` invariant #6).
+
+### D-057 — `mark_disputed` auto-unpublishes an already-published signal
+
+**Choice:** `mark_disputed` on an already-published signal moves `publication_status` back to `in_review` and `verification_status` to `disputed` (auto-unpublish), not just a badge change — confirmed with the user as the safer default given evidence-integrity priority. `mark_disputed`'s valid-current-status set includes `approved` (in addition to `pending`/`needs_more_evidence`), so the *same* research item that was previously approved for a published signal is reused for the dispute — no new or reopened item is required first.
+
+**Consequence:** A published signal's queue history is a single row moving `pending → approved → disputed`, and the very next anon read after a dispute cannot see the signal — no cache, no delay, no separate "unpublish" step.
+
+### D-058 — Milestone 4 scope: `item_type = 'new_signal'` only, RPC-enforced `edit_approve` allow-list
+
+**Choice:** Milestone 4 builds full UI/RPC support for `item_type = 'new_signal'` only; `new_company`/`entity_match`/`correction` remain valid enum values with no code path yet. `submit_review_action` checks `research_items.item_type` and raises "unsupported item_type in Milestone 4" for anything but `new_signal` — but only after the D-055 reviewer gate passes, never before it. `edit_approve`'s column allow-list is likewise enforced authoritatively inside the RPC, not only in `src/lib/review/schema.ts`'s Zod schema: `submit_review_action` hardcodes exactly four editable `signals` columns (`headline`, `summary`, `why_it_matters`, `evidence_strength`) via an explicit static `UPDATE` with `coalesce(p_edited_fields ->> '<col>', <col>)` per column — never a dynamic/generic JSON-to-column mechanism.
+
+**Consequence:** No key outside that allow-list (including `id`, `company_id`, `publication_status`, `verification_status`, `is_demo`, `created_by_type`) can ever be written from reviewer-supplied input, even by a reviewer calling the RPC directly and bypassing the app entirely. The Zod schema mirrors this list purely as UI-layer defense-in-depth; no `companies`-branch UPDATE logic or edit-field allow-list exists anywhere this milestone.
+
+### D-059 — `derive_research_items_from_seed_signals` covers all seed signals, not just drafts
+
+**Choice:** Queue content comes from a new, isolated `derive_research_items_from_seed_signals(p_baseline_reviewer_email text)` RPC (renamed/broadened from an earlier `derive_research_items_from_drafts()`) and `supabase/seed-research-queue.ts`, rather than modifying `seed/demo-data.json` or the Milestone 3 `reseed_demo_data` migration. This RPC covers all 21 seed signals: drafts get a `pending` `research_items` row; the 14 already-published signals additionally get an `approved` `research_items` row plus one baseline `review_actions` anchor (D-069).
+
+**Consequence:** Keeps both already-shipped M3 artifacts byte-for-byte unchanged, while closing the gap where the 14 already-published signals would otherwise have no queue/audit trail at all (violating `docs/DATA_MODEL.md` invariant #2 — a verified signal must have an approving review action).
+
+### D-060 — A third Supabase client for reviewer sessions
+
+**Choice:** A third Supabase client, `src/lib/supabase/session-client.ts` (`@supabase/ssr`, cookie/session-aware, publishable key + user JWT only), is added alongside the existing anon and service-role clients.
+
+**Consequence:** Used only under reviewer routes, never imported by `repository.ts`/`dashboard.ts`/`browse.ts` — the public app's anon-only invariant stays intact.
+
+### D-061 — `@supabase/ssr` added as a new runtime dependency
+
+**Choice:** `@supabase/ssr` added as a new runtime dependency (anticipated by D-047).
+
+**Consequence:** Required because `@supabase/supabase-js` alone has no cookie/session integration for Next.js Server Components — this is Supabase's own official package for exactly that.
+
+### D-062 — Reviewer test-account provisioning is a separate script
+
+**Choice:** Reviewer test-account provisioning (`supabase/seed-reviewer.ts`, `TEST_REVIEWER_EMAIL`/`TEST_REVIEWER_PASSWORD`) is a separate script/npm command from `supabase/seed.ts`.
+
+**Consequence:** Supabase Auth users can't be created via plain SQL and have a different idempotency shape (create-if-missing, never delete-and-recreate) than the JSON reseed.
+
+### D-063 — `mark_disputed` valid against an `approved` research item
+
+**Choice:** `mark_disputed` is valid against an `approved` research item (not only `pending`/`needs_more_evidence`), specifically to support disputing an already-published signal without creating a duplicate/second research item or requiring a separate `reopen` step first.
+
+**Consequence:** (This decision's original scope also described `reopen` as valid from `approved` — that half is superseded by D-071, which restricts `reopen` to `rejected`/`disputed` only.)
+
+### D-064 — e2e reset mechanism preserves `review_actions` append-only semantics
+
+**Choice:** `e2e/reviewer-workflow.spec.ts` resets its one fixture signal/research-item pair (`demo-signal-1-3`/`ri-demo-signal-1-3`) via a `test.beforeAll` hook using the existing `tests/integration/test-service-client.ts` (reused as-is, not duplicated) rather than a full `db:seed`/`db:seed:queue` re-run before each pass — two targeted `UPDATE` statements resetting only `signals`/`research_items` status columns, never touching `seed/demo-data.json` and never `DELETE`-ing from `review_actions`.
+
+**Consequence:** Runs only in the Playwright test-runner's Node process (never in the deployed app); append-only holds even in test setup, the same property production code relies on.
+
+### D-065 — `reviewer_profiles` gets its own explicit, load-bearing RLS
+
+**Choice:** `reviewer_profiles` gets its own explicit RLS: no `anon` SELECT policy at all, and `authenticated` gets exactly one SELECT policy scoped to `id = auth.uid() and is_active` (no INSERT/UPDATE/DELETE for `authenticated`).
+
+**Consequence:** This isn't optional hardening — every other reviewer-role RLS policy embeds an `exists (select 1 from reviewer_profiles where id = auth.uid() and is_active)` subquery, and RLS subqueries run under the *calling* role's own privileges, not the outer policy's. Without this policy, that subquery would return zero rows for every authenticated caller regardless of whether a matching row exists, silently breaking every reviewer policy in the schema.
+
+### D-066 — Five distinct fixture accounts for reviewer RLS/deactivation test coverage
+
+**Choice:** Test coverage for `reviewer_profiles` RLS and reviewer deactivation requires five distinct fixture accounts (primary active reviewer, second active reviewer for row-isolation proof, non-reviewer authenticated user, inactive reviewer, and the demo baseline reviewer — D-069), all provisioned by one `supabase/seed-reviewer.ts` via plus-addressing off the existing `TEST_REVIEWER_EMAIL`/`TEST_REVIEWER_PASSWORD` — no new env var names.
+
+**Consequence:** Both the new integration test file and the e2e reset hook assert `review_actions` state via before/after count deltas and "latest matching row" queries, never via absolute row counts or `DELETE`, so append-only semantics hold even inside test setup.
+
+### D-067 — Non-reviewer/inactive test assertions don't assume anon parity
+
+**Choice:** Non-reviewer/inactive-reviewer test assertions target the actual required security property directly (a known draft signal id returns zero rows; `submit_review_action` fails with "not an active reviewer") rather than asserting parity with `anon`'s read results.
+
+**Consequence:** Whether an M3 policy incidentally also applies to the `authenticated` role (a `for select` policy with no `to` clause defaults to `public`, which includes `authenticated`) is an implementation detail this plan doesn't need to depend on either way.
+
+### D-068 — No `/auth/callback` route this milestone
+
+**Choice:** No `src/app/auth/callback/route.ts` and no `/auth/callback` entry in `middleware.ts`'s `matcher` this milestone.
+
+**Consequence:** Email/password sign-in (`signInWithPassword`) sets the session cookie directly with no redirect-based code exchange, so there is no callback flow to gate. Would be added together (route + matcher entry) if a future milestone adds magic-link or OAuth reviewer login.
+
+### D-069 — A dedicated "Demo Baseline Reviewer" fixture account
+
+**Choice:** A dedicated fixture account (`<local>+baseline@<domain>`, a 5th fixture alongside the 4 from D-066) exists solely so the 14 already-published seed signals' baseline `review_actions` anchors have a real, valid `reviewer_profiles`-backed `reviewer_id` to attribute to (the column is `not null` and FK-constrained, so a placeholder/null isn't possible). `derive_research_items_from_seed_signals()` looks up this account's `auth.users.id` by email (passed as a parameter) and raises a clear error if `db:seed:reviewer` hasn't run yet.
+
+**Consequence:** Makes the previously-informal "run reviewer seed before queue seed" ordering an actual enforced dependency, not just documentation. Each baseline `review_actions` row's `reviewer_note` states plainly that it's a seeded anchor, not a live review event. Idempotency uses a `not exists` guard (no natural unique key for `review_actions` to `on conflict` against) — re-running `db:seed:queue` inserts zero additional anchor rows once each published signal already has one.
+
+### D-070 — Publish-time evidence requirement
+
+**Choice:** `submit_review_action`'s `approve`/`edit_approve` branches assert the target signal has at least one `signal_evidence` row before setting `publication_status = 'published'`, raising a clear exception otherwise.
+
+**Consequence:** Enforces `docs/DATA_MODEL.md` invariant #1 ("a published signal must have at least one linked source document") at the database level for the review-driven publish path — previously this invariant held only incidentally, because the seed data's Zod schema already requires `evidence.length >= 1`, not because the database itself required it for a reviewer-driven publish.
+
+### D-071 — `reopen` restricted to `rejected`/`disputed`, never `approved`
+
+**Choice:** `reopen`'s valid-current-status set is `rejected`/`disputed` only — `approved` was removed (supersedes the `reopen` half of D-063).
+
+**Consequence:** Allowing `reopen` from `approved` would let `research_items.status` read `pending` for a signal whose `publication_status` was still `published` and fully live — a confusing queue-state/public-reality mismatch with no real benefit, since `mark_disputed` already fully covers "reconsider a decision on a published/approved item," including retracting public visibility. `mark_disputed` is therefore the sole path that can act on an `approved` item, and the sole path that ever un-publishes a signal; `reopen` only ever walks an already-`rejected`/`disputed` item back to `pending` for reconsideration from scratch, never touching a currently-live signal.
+
+### D-072 — `npm run test:db` runs test files sequentially (`fileParallelism: false`)
+
+**Choice:** Once `publish-gate.test.ts` began performing real mutations against shared `signals`/`research_items` rows (even carefully reset before/after each test), Vitest's default parallel-file execution raced against other integration test files' exact-count/exact-row assertions (`tests/integration/rls.test.ts`, `public-data-reads.test.ts`, `seeded-counts.test.ts`) reading those same rows mid-mutation — observed directly as `demo-signal-1-1` (hardcoded elsewhere as a stable "known always-published" fixture) intermittently failing a "signal exists and is published" assertion while `publish-gate.test.ts`'s dispute test had it transiently unpublished. `vitest.integration.config.ts` now sets `test.fileParallelism: false`.
+
+**Consequence:** This is the exact same class of problem D-051 already fixed for Playwright (`workers: 1`) — several workers concurrently hitting the one shared live dev Supabase project. Verified stable across two consecutive full `npm run test:db` runs (57/57 both times) after the fix. `publish-gate.test.ts`'s single-test "dispute on an originally-published seed signal" describe block also gained an explicit `afterEach` restoring `demo-signal-1-1` to `published`/`verified`/`approved` — belt-and-suspenders on top of the sequencing fix, not a substitute for it.
+
+### D-073 — `npm run test:e2e` loads `.env.local` via `node --env-file`
+
+**Choice:** `e2e/reviewer-workflow.spec.ts`'s `test.beforeAll` hook runs inside the Playwright test-runner's own Node process (not the deployed app under test) and calls `getTestServiceClient()` directly, which needs `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` present in that process's own environment — unlike `e2e/smoke.spec.ts`'s tests, which only need the app (started via `next build`/`next start`, which load `.env.local` themselves) to have them. Plain `npx playwright test` doesn't load `.env.local` into its own process, the same gap already solved for `db:seed`/`test:db` via `node --env-file=.env.local`. `package.json`'s `test:e2e` script now invokes Playwright's CLI (`node_modules/@playwright/test/cli.js`) the same way: `node --env-file=.env.local ./node_modules/@playwright/test/cli.js test`.
+
+**Consequence:** `npm run test:e2e` now works uniformly for both the hermetic-to-the-runner `smoke.spec.ts` and the runner-needs-Supabase-too `reviewer-workflow.spec.ts`, without any new dependency (no `dotenv` package) — matching the established pattern from D-046/`db:seed`.
+
+### D-074 — `e2e/reviewer-workflow.spec.ts` restores its fixture in `afterAll`, not only `beforeAll`
+
+**Choice:** The reviewer e2e spec's flow deliberately ends with `demo-signal-1-3` disputed (`publication_status = 'in_review'`), not `draft` — proving the dispute action works. `tests/integration/seeded-counts.test.ts` hardcodes "7 draft signals" as a global count, so leaving this fixture at anything but `draft` after an e2e run silently broke the very next `npm run test:db` run. `test.afterAll` now calls the same reset used in `test.beforeAll`, restoring `draft`/`pending` after the spec finishes, not only before it starts.
+
+**Consequence:** `npm run test:e2e` and `npm run test:db` can now run in either order, any number of times, without manually repairing state in between — verified directly (`test:e2e` → `test:db` back-to-back, both green). Same root-cause class as D-072/the `publish-gate.test.ts` `afterEach` fix: a test that intentionally leaves shared live-database state changed must restore it in a symmetric cleanup hook, not only set it up beforehand.
+
 ## Intentionally deferred decisions
 
 - First live connector
