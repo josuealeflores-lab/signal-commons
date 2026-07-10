@@ -1,6 +1,6 @@
 # Source-Candidate Assessment — Signal Commons
 
-**Status:** Draft for human review. Not yet approved. Do not treat any recommendation here as an approved connector.
+**Status:** Approved as the methodology basis and source selection for the first controlled research connector (`docs/DECISIONS.md` D-082). Connector implementation remains gated on the USAspending First-Connector Field-Mapping & Review Spec and a hand-labeled validation set — neither exists yet. This approval covers source selection (USAspending.gov) and methodology (the AI-relevance taxonomy, two-stage triage design, and Stage-1-only first-cut direction); it does not approve connector implementation, Stage-2 AI-assisted classification, production ingestion, or any real record entering the system.
 **Prepared for:** Research and methodology track (Signal Commons, Emerging AI Impact Radar).
 **Scope of this document:** Assess public data sources for *discovering* and *verifying* emerging AI-company activity across the seven equally weighted sectors. This document does **not** create company claims, rankings, or seed records, and it does not modify application code or call any API.
 **Date prepared:** 2026-07-04. **Revised:** 2026-07-04 (Rev. 2 — see Change Log, Section 11).
@@ -330,7 +330,11 @@ Draft record for review. Field names mirror the `source_documents` / `ingestion_
 connector_key: usaspending_award_search
 official_name: "USAspending.gov Award Search API"
 issuing_organization: "U.S. Department of the Treasury, Bureau of the Fiscal Service"
-status: proposed            # proposed | approved | active | retired
+status: methodology_and_source_approved  # proposed | methodology_and_source_approved | implementation_approved | active | retired
+# Source selection (USAspending.gov) and methodology (AI-relevance taxonomy,
+# two-stage triage design, Stage-1-only first-cut direction) are approved
+# (docs/DECISIONS.md D-082). Connector implementation is NOT yet approved —
+# gated on the Field-Mapping & Review Spec and a hand-labeled validation set.
 source_tier: 1              # Tier 1 — direct primary/authoritative (official award record)
 provenance: direct          # direct | intermediary | derivative
 default_claim_type: official_record

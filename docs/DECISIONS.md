@@ -490,6 +490,12 @@ Record new decisions here with date, context, choice, and consequence.
 
 **Consequence:** No new dependency this milestone. Findings, fixes, and known accepted gaps (no rate limiting, no idempotency keys on mutation endpoints — carried forward from the Milestone 4 plan's risk section) are recorded in one place alongside the Supabase advisor results and production smoke-check outcomes.
 
+### D-082 — `docs/SOURCE_CANDIDATE_ASSESSMENT.md` approved as methodology/source-selection basis for Milestone 6 planning
+
+**Choice:** Cowork reviewed `docs/SOURCE_CANDIDATE_ASSESSMENT.md` and returned Pass. It is now approved specifically as: (1) the source-selection decision — USAspending.gov Award Search API is the approved first controlled connector source; (2) the methodology basis for Milestone 6 planning — the AI-relevance taxonomy (§8), the two-stage triage design (§9), and the award-relevance distinctions (§10). A **Stage-1-only first cut** (deterministic filtering only, no AI classification) is the preferred direction for the first implementation pass; **Stage-2 AI-assisted classification is deferred** to a later milestone, not part of this approval.
+
+**Consequence:** This approval is deliberately narrow and does **not** cover: connector implementation, Stage-2 AI-assisted classification, production ingestion, or any real (non-demo) record entering the system. Implementation remains gated on two artifacts that don't yet exist — the "USAspending First-Connector Field-Mapping & Review Spec" (concrete Stage-1 keyword/code/agency rules, exact field mappings, a written Stage-2 prompt contract) and a hand-labeled validation set (50–100 real award descriptions classified against the §8 taxonomy) — both called for by the source document's own §12. No code, migration, or connector work is authorized by this decision alone.
+
 ## Intentionally deferred decisions
 
 - First live connector
