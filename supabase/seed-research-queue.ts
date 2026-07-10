@@ -7,11 +7,18 @@ import { getServiceSupabaseClient } from "../src/lib/supabase/service-client.ts"
  * D-059/D-069). Kept isolated from supabase/seed.ts and the Milestone 3
  * reseed_demo_data migration — neither needs any changes for this.
  *
- * Requires npm run db:seed:reviewer to have already provisioned the
- * baseline reviewer account: this script passes that account's derived
- * email to the RPC, which fails loudly (not silently) if the account
- * doesn't exist yet, making the "reviewer seed before queue seed" order an
- * enforced dependency, not just documentation.
+ * Requires the baseline reviewer account to already be provisioned before
+ * this runs: this script passes that account's email to the RPC, which
+ * fails loudly (not silently) if the account doesn't exist yet, making the
+ * "reviewer seed before queue seed" order an enforced dependency, not just
+ * documentation.
+ *
+ * Baseline reviewer email resolution (docs/DECISIONS.md D-075): prefers
+ * BASELINE_REVIEWER_EMAIL if set (the production path, provisioned by
+ * supabase/seed-baseline-reviewer.ts's inactive Demo Baseline Reviewer
+ * identity); otherwise falls back to the existing plus-addressing
+ * derivation from TEST_REVIEWER_EMAIL (the dev/CI path, unchanged,
+ * provisioned by supabase/seed-reviewer.ts's five-account fixture set).
  */
 
 function requireEnv(name: string): string {
@@ -30,9 +37,14 @@ function deriveBaselineReviewerEmail(baseEmail: string): string {
   return `${baseEmail.slice(0, atIndex)}+baseline@${baseEmail.slice(atIndex + 1)}`;
 }
 
+function resolveBaselineReviewerEmail(): string {
+  const override = process.env.BASELINE_REVIEWER_EMAIL;
+  if (override) return override;
+  return deriveBaselineReviewerEmail(requireEnv("TEST_REVIEWER_EMAIL"));
+}
+
 async function main() {
-  const baseEmail = requireEnv("TEST_REVIEWER_EMAIL");
-  const baselineReviewerEmail = deriveBaselineReviewerEmail(baseEmail);
+  const baselineReviewerEmail = resolveBaselineReviewerEmail();
   const supabase = getServiceSupabaseClient();
 
   console.log("Deriving research_items and baseline review_actions anchors from seed signals...");

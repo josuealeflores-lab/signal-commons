@@ -448,6 +448,48 @@ Record new decisions here with date, context, choice, and consequence.
 
 **Consequence:** `npm run test:e2e` and `npm run test:db` can now run in either order, any number of times, without manually repairing state in between — verified directly (`test:e2e` → `test:db` back-to-back, both green). Same root-cause class as D-072/the `publish-gate.test.ts` `afterEach` fix: a test that intentionally leaves shared live-database state changed must restore it in a symmetric cleanup hook, not only set it up beforehand.
 
+### D-075 — Dedicated production Supabase project, separate from dev/CI/test
+
+**Choice:** Milestone 5 creates a new, separate Supabase project for production, distinct from the project used for local dev, CI, and `test:db`/`test:e2e`. The existing project is untouched and continues serving dev/CI exactly as before. The 3 existing migrations are applied to the new project unchanged — no schema changes.
+
+**Consequence:** Vercel Production's environment variables point at the new project; Vercel Preview stays on the existing dev/test project (Preview therefore shows dev/demo data — acceptable at this stage, since Preview exists to review in-progress code, not to represent what a real visitor to production sees). This closes the gap where "production" previously meant the same project used by CI's mutating test suite and the 5 shared-password reviewer fixture accounts.
+
+### D-076 — Demo Baseline Reviewer: one inactive system identity for prod audit-anchor attribution
+
+**Choice:** Production gets exactly one reviewer identity — one `auth.users` row (email `baseline@signal-commons.invalid`, the RFC-2606-reserved `.invalid` TLD guaranteeing it can never be a real, deliverable address) plus one `reviewer_profiles` row (`is_active = false`) — created by a new, idempotent `supabase/seed-baseline-reviewer.ts` script. Its password is generated locally at creation time, used once, and never logged or stored; this identity has no legitimate login path.
+
+**Consequence:** `derive_research_items_from_seed_signals`'s baseline `review_actions` anchors can be attributed to a real `reviewer_profiles` row (satisfying the `not null` foreign key) with zero SQL/migration/RPC changes: the foreign key only requires the row to *exist*, not `is_active = true`, and the RPC itself never checks `is_active` — it only resolves the baseline email against `auth.users`. `is_active = false` is enforced exactly where it should be — `submit_review_action`'s reviewer-gate-first check and the `reviewer_profiles_self_select` RLS policy / `(reviewer)` layout re-check all correctly reject this identity, so it structurally cannot act as a reviewer or log in anywhere. The 5-account, shared-password `supabase/seed-reviewer.ts` fixture script is never run against production.
+
+### D-077 — `BASELINE_REVIEWER_EMAIL` env var, with a dev/CI fallback
+
+**Choice:** `supabase/seed-research-queue.ts` now resolves the baseline reviewer's email by preferring `process.env.BASELINE_REVIEWER_EMAIL` if set; otherwise it falls back to the existing plus-addressing derivation from `TEST_REVIEWER_EMAIL` (`<local>+baseline@<domain>`).
+
+**Consequence:** Dev/CI behavior is completely unchanged by default (no env var set there, so the existing derivation still applies against the dev fixture set). Production setup (`.env.production.local`) sets `BASELINE_REVIEWER_EMAIL=baseline@signal-commons.invalid` explicitly, pointing `db:seed:queue:prod` at the D-076 identity instead.
+
+### D-078 — `.env.production.local` + explicit `:prod`-suffixed npm scripts
+
+**Choice:** A new, local-only, already-gitignored `.env.production.local` file holds the new prod project's credentials for one-time local setup. Four new npm scripts (`db:seed:baseline-reviewer`, `db:seed:prod`, `db:seed:baseline-reviewer:prod`, `db:seed:queue:prod`) invoke the identical existing script bodies, differing only in which `--env-file` they load. No generic `--env-file` override flag was added.
+
+**Consequence:** `.env.local` is never touched or repurposed. There is deliberately no `db:seed:reviewer:prod` script at all, so the shared-password fixture seed cannot be run against production even by typo of an existing `:prod` command name. `SUPABASE_SERVICE_ROLE_KEY` for the new project lives only in `.env.production.local`, is used only by these local `:prod` scripts, and is never added to any Vercel environment variable.
+
+### D-079 — Reviewer-fixture tests stay dev/CI-only, permanently; production gets a separate verification checklist
+
+**Choice:** `tests/integration/publish-gate.test.ts`, `tests/integration/reviewer-profiles-rls.test.ts`, and `e2e/reviewer-workflow.spec.ts` are never run against the production Supabase project — not just for Milestone 5, but permanently, since they require reviewer fixture accounts that must never exist there. They continue to run only against the existing dev/CI project, proving the exact migrations/RPCs applied to production are correct without ever needing that proof repeated against production itself.
+
+**Consequence:** `npm run test:db` cannot run at all against a fixture-free project regardless — `tests/integration/setup.ts`'s global setup requires ≥4 active `reviewer_profiles` rows to exist as a prerequisite for any test file in that suite. Production pre-cutover verification instead uses a separate, lightweight, fixture-free checklist (documented in `docs/DEPLOYMENT.md`): migrations applied; `db:seed:prod`/`db:seed:baseline-reviewer:prod`/`db:seed:queue:prod` succeed; seeded counts and baseline audit anchors verified (including idempotency, via read-only re-runs); anon/public RLS and public data reads verified via a throwaway anon-client check; confirmation that no reviewer fixture accounts exist in prod; Supabase security advisors checked via MCP where available; then the manual Vercel production smoke checklist after cutover.
+
+### D-080 — `middleware.ts` → `proxy.ts` rename deferred out of Milestone 5
+
+**Choice:** `src/middleware.ts` is kept unchanged this milestone, despite Next.js 16.2.10 emitting a real deprecation warning for the legacy filename (`proxy.ts` is now the expected convention). The rename is deferred to a future milestone.
+
+**Consequence:** The originally-proposed verification — re-running `e2e/reviewer-workflow.spec.ts`'s redirect assertions after renaming — is confounded: `src/app/(reviewer)/layout.tsx` independently re-checks the session server-side and redirects unauthenticated requests to `/auth/login` on its own, so that assertion would pass identically whether the middleware/proxy layer is loaded at all. It does not isolate or prove the proxy layer specifically is active. The deprecation warning is documented as a known, non-blocking follow-up (`docs/DEPLOYMENT.md`/`docs/READINESS_REVIEW.md`); the rename should not be attempted again until a non-confounded verification method is identified — e.g., a check that observes something only the middleware/proxy layer itself does, decoupled entirely from the layout's independent redirect.
+
+### D-081 — Manual, combined readiness review; no new accessibility-tooling dependency
+
+**Choice:** Milestone 5's security and accessibility reviews are both manual and documented in one combined `docs/READINESS_REVIEW.md`, rather than automated tooling (e.g., `@axe-core/playwright`) or two separate files.
+
+**Consequence:** No new dependency this milestone. Findings, fixes, and known accepted gaps (no rate limiting, no idempotency keys on mutation endpoints — carried forward from the Milestone 4 plan's risk section) are recorded in one place alongside the Supabase advisor results and production smoke-check outcomes.
+
 ## Intentionally deferred decisions
 
 - First live connector
@@ -460,3 +502,5 @@ Record new decisions here with date, context, choice, and consequence.
 - Python worker requirement
 - Semantic search requirement
 - Monetization or organizational structure
+- `middleware.ts` → `proxy.ts` migration (needs a non-confounded verification method first — see D-080)
+- Rate limiting and idempotency keys on mutation endpoints (accepted gap, documented in D-070's area and `docs/READINESS_REVIEW.md`)

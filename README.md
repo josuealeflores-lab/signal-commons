@@ -50,3 +50,18 @@ npm run build       # production build
 ```
 
 Copy `.env.example` to `.env.local` and fill in values once Supabase/Claude credentials are introduced (not required for Milestone 0).
+
+## Demo script (production)
+
+A live demo from a clean browser session, in order:
+
+1. **Public browse** — visit the production URL. The dashboard, `/sectors`, `/companies`, and `/signals` all load with a persistent "Demo data" notice. Every sector is represented equally.
+2. **Evidence** — open any signal and any company profile. Each shows source-linked evidence with a publisher, event date, retrieval date, source type, verification status, and evidence-strength label — no opaque overall score.
+3. **A draft stays private** — a draft/in-review signal returns the same branded 404 as a nonexistent one; there is no way to distinguish "exists but unpublished" from "doesn't exist" as an anonymous visitor.
+
+**Reviewer flow** is demonstrated separately, since production intentionally has no publicly-known reviewer login:
+
+- **On dev/CI**, sign in at `/auth/login` with one of the five fixture reviewer accounts (`docs/DECISIONS.md` D-066), open `/research-queue`, and walk a pending item through approve → dispute — the signal appears on `/signals` immediately after approval and disappears immediately after dispute.
+- **On production**, the reviewer flow can only be demonstrated after manually provisioning one real reviewer account, following the runbook in `docs/DEPLOYMENT.md` — production ships with zero usable reviewer logins by design (only an inactive system identity used for seeded audit-anchor attribution, `docs/DECISIONS.md` D-076).
+
+See `docs/DEPLOYMENT.md` for the full environment map, production setup order, and Vercel cutover/rollback steps.

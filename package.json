@@ -14,7 +14,11 @@
     "test:e2e": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test",
     "db:seed": "node --env-file=.env.local --conditions=react-server supabase/seed.ts",
     "db:seed:reviewer": "node --env-file=.env.local --conditions=react-server supabase/seed-reviewer.ts",
-    "db:seed:queue": "node --env-file=.env.local --conditions=react-server supabase/seed-research-queue.ts"
+    "db:seed:queue": "node --env-file=.env.local --conditions=react-server supabase/seed-research-queue.ts",
+    "db:seed:baseline-reviewer": "node --env-file=.env.local --conditions=react-server supabase/seed-baseline-reviewer.ts",
+    "db:seed:prod": "node --env-file=.env.production.local --conditions=react-server supabase/seed.ts",
+    "db:seed:baseline-reviewer:prod": "node --env-file=.env.production.local --conditions=react-server supabase/seed-baseline-reviewer.ts",
+    "db:seed:queue:prod": "node --env-file=.env.production.local --conditions=react-server supabase/seed-research-queue.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
