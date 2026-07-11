@@ -510,3 +510,16 @@ Record new decisions here with date, context, choice, and consequence.
 - Monetization or organizational structure
 - `middleware.ts` → `proxy.ts` migration (needs a non-confounded verification method first — see D-080)
 - Rate limiting and idempotency keys on mutation endpoints (accepted gap, documented in D-070's area and `docs/READINESS_REVIEW.md`)
+
+### D-083 — Milestone 6 methodology artifacts landed: Field-Mapping & Review Spec and Entity-Resolution Policy (Option B locked)
+
+**Choice:** `docs/USASPENDING_FIELD_MAPPING_AND_REVIEW_SPEC.md` and `docs/ENTITY_RESOLUTION_POLICY.md` are added as **planning/methodology artifacts only — not implementation approval.** Neither document contains connector code, calls any API, creates any record, or writes a migration. Together they lock the following decisions for Milestone 6:
+
+- **Option B — ingest-to-queue only.** Real USAspending award records may become `is_demo = false` **drafts in the reviewer queue**, but connector-sourced records **do not publish publicly in Milestone 6**. The M4 publish gate stays `new_signal`-only.
+- **`company_aliases` is planned as a small additive M6 migration** (UEI/name alias storage and recipient deduplication, since `companies` has no UEI column) — reviewer/service-role access only, no public read. **No migration is written by these documents**; the actual SQL is produced in a later Code planning pass and reviewed by Cowork before it is applied.
+- **Public publication of connector records is deferred**, along with **`new_company`/`entity_match`/`correction` publish-gate support** — all explicit follow-on-milestone work, not part of Milestone 6.
+- **Stage-2 AI-assisted classification is deferred.** Milestone 6 is Stage-1 (deterministic filter) only; humans classify manually until a validation bar is cleared.
+- **Entity-resolution policy is deliberately conservative:** UEI-exact match against `company_aliases` is the **only** automatic company-reuse path; name-only matching **never** auto-reuses or auto-creates; ambiguous or conflicting matches always produce an `entity_match` research item for human review; **the system never auto-merges** entities under any circumstance.
+- **A hand-labeled validation set and explicit recall thresholds (≥ 0.90 overall, ≥ 0.80 per sector) remain a hard gate** before the Stage-1 filter rules (keywords, codes, agency weights) are trusted for any real run.
+
+**Consequence:** Milestone 6 implementation, whenever it begins, is scoped and bounded by these two documents — any future session or reviewer should treat their locked decisions (Option B, the conservative entity-resolution rules, the deferred items above) as settled inputs, not open questions to re-litigate, while still recognizing that neither document authorizes writing connector code, calling the USAspending API, creating any record, or applying any migration on its own.
