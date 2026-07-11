@@ -523,3 +523,13 @@ Record new decisions here with date, context, choice, and consequence.
 - **A hand-labeled validation set and explicit recall thresholds (≥ 0.90 overall, ≥ 0.80 per sector) remain a hard gate** before the Stage-1 filter rules (keywords, codes, agency weights) are trusted for any real run.
 
 **Consequence:** Milestone 6 implementation, whenever it begins, is scoped and bounded by these two documents — any future session or reviewer should treat their locked decisions (Option B, the conservative entity-resolution rules, the deferred items above) as settled inputs, not open questions to re-litigate, while still recognizing that neither document authorizes writing connector code, calling the USAspending API, creating any record, or applying any migration on its own.
+
+### D-084 — USAspending validation labeling protocol and synthetic sample templates landed (real data not yet pulled)
+
+**Choice:** `docs/USASPENDING_VALIDATION_LABELING_PROTOCOL.md`, `docs/USASPENDING_VALIDATION_SET_README.md`, `docs/research/stage1_validation_set.SAMPLE.jsonl`, and `docs/research/entity_resolution_validation_set.SAMPLE.jsonl` are added as **planning/methodology artifacts only — not implementation approval.** The two `.SAMPLE.jsonl` files are explicitly **synthetic templates** (fabricated award/recipient data, each carrying its own `_meta`/`_synthetic` header) that illustrate the labeling schema and case coverage only — they **cannot be used to compute the Stage-1 recall or entity-resolution false-merge acceptance metrics.** No real USAspending validation data has been pulled: the labeling protocol's own README documents that the assistant preparing these artifacts could confirm the API is reachable via `GET` but could not execute the required `POST` award-search queries with its available tooling.
+
+**Consequence:** The real Stage-1 AI-Relevance Validation Set (target ~150 records) and the real Entity-Resolution Validation Set (target ~75 items) still require a **separate, explicit approval** before any USAspending `POST` queries are run — this decision does not authorize that step. The acceptance gates these real sets must clear before their respective rules are trusted remain as locked in D-083/the Field-Mapping Spec and Entity-Resolution Policy:
+- **Stage-1 recall ≥ 0.90 overall and ≥ 0.80 per sector.**
+- **Entity-resolution false-merge rate = 0** in the labeled set before UEI-exact auto-reuse is trusted.
+
+No connector code, migrations, API calls, database records, or Milestone 6 implementation were created by this checkpoint — only the four docs-only planning/template files listed above.
