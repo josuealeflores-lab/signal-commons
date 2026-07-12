@@ -30,9 +30,10 @@
   - ~20–25% **weak/ambiguous** (bare `AI`, generic analytics, terse descriptions);
   - ~15–20% **clear non-AI controls**.
 - The sampling query (README) uses **tight Stage-1-adjacent keywords** to find AI candidates, **plus** a set of deliberately-AI-ambiguous and clearly-non-AI pulls so the negatives and false-positive traps are represented (a pure keyword pull would contain almost no true negatives, making recall unmeasurable in context and precision unmeasurable at all).
+- **Sampling-frame bias mitigation (Fable R3 fix — see D-085):** a fourth sub-pull is added, sourced by NAICS/PSC/CFDA/agency/program codes with **no description keyword filter at all** (README §3.5). This exists because a keyword-only sampling frame can only ever surface records that already contain a keyword — it structurally cannot reveal whether the filter is missing real AI-relevant awards described without those terms. Every record's `sample_source` (§1.2) is retained specifically so recall can be reported per-source (§5.1), not just overall/per-sector.
 
 ### 1.2 Input fields captured per record (read-only from the API)
-`award_id` (generated_internal_id), `award_type`, `recipient_name`, `recipient_uei`, `awarding_agency`, `awarding_sub_agency`, `award_description`, `naics_code`+`naics_description`, `psc_code`+`psc_description`, `cfda_number`+`cfda_title`, `action_date`, `award_amount`, `source_url`. (No `stage1_*` fields are shown to the labeler — see §0.)
+`award_id` (generated_internal_id), `award_type`, `recipient_name`, `recipient_uei`, `awarding_agency`, `awarding_sub_agency`, `award_description`, `naics_code`+`naics_description`, `psc_code`+`psc_description`, `cfda_number`+`cfda_title`, `action_date`, `award_amount`, `source_url`, **`sample_source`** (Fable R3 fix — one of `keyword_pull` / `ambiguous_pull` / `control_pull` / `code_pull`, per README §2/§3; recorded at sampling time, not shown to the labeler as a hint — it's provenance metadata, not a label). (No `stage1_*` fields are shown to the labeler — see §0.)
 
 ### 1.3 Labels the human assigns
 | Label | Values |
@@ -132,6 +133,7 @@ Let ground truth `is_ai_relevant` (§1.3) be the positive class. Let `stage1_mat
 - **Overall recall must be ≥ 0.90.**
 - **Per-sector recall** (compute recall within each of the seven sector slugs) **must be ≥ 0.80 for every sector** that has a usable sample size (see caveat below). Report each sector's recall and n.
 - **Sector sample-size caveat:** with ~150 records, some sectors will have small n (e.g. nonprofits). A per-sector recall on n<10 is noisy; report n alongside recall and treat a sub-threshold result on a very small sector as "insufficient sample — expand that slice," not an automatic fail. (Decision needed — §7.)
+- **Recall by `sample_source` (Fable R3 fix — additional reporting requirement, not a replacement for the overall/per-sector gates above):** compute recall separately for **keyword-sourced positives** (`sample_source ∈ {keyword_pull, ambiguous_pull}`) vs. **code-sourced positives** (`sample_source = code_pull`). Report both alongside the overall and per-sector figures. There is no separate pass/fail threshold specific to this split yet — the point is **visibility**: if code-sourced recall is materially lower than keyword-sourced recall, that's direct evidence the keyword filter is systematically missing a class of real AI-relevant awards, and the Stage-1 ruleset (Field-Mapping §4) should be revisited before trusting the overall number.
 
 ### 5.2 Stage-1 false-positive rate (measure + report; soft, not a hard gate this pass)
 - **FP rate = FP / (FP + TN)** where FP = labeled-not-AI **and** stage1_matched; TN = labeled-not-AI **and** not matched. Also report **precision = TP / (TP + FP)**.
@@ -159,10 +161,11 @@ Let ground truth `is_ai_relevant` (§1.3) be the positive class. Let `stage1_mat
 1. **Who executes the real pull and labeling?** The assistant can't POST-search; Code (real HTTP) or a human must run the README queries. Confirm the owner.
 2. **Small-sector sample sizes.** For sectors with n < ~10 in a 150-record set, is sub-0.80 recall an automatic fail, or a "grow the slice and re-measure" signal? (Recommended: the latter, with n reported.)
 3. **Sampling window overlap.** The validation pull should use a window that will **not** overlap the connector's first live 90-day pull, so the gate isn't measured on the same rows the connector later ingests. Confirm the window (e.g. an older quarter).
-4. **Labeler count / adjudication.** Single labeler vs ≥2 with inter-rater agreement on a subset; who adjudicates disagreements.
+4. **Labeler count / adjudication — resolved (Fable follow-up):** dual-label **20–30% of the real data** (both validation sets) and report inter-rater agreement on that subset; single-label the remainder. Who adjudicates disagreements on the dual-labeled subset is still open.
 5. **Provisional sector heuristic (§3)** — accept as a candidate to validate, with human override + `sector_unclear` always allowed?
 6. **FP soft target** — accept "measure, report, no hard gate this pass," with the ≤0.35 FP / ≥0.5 precision figure as advisory only?
 7. **Entity-set duplicate-UEI inclusion** — real duplicate-UEIs may be hard to find; is the set acceptable without one if none surface in the sampled window?
+8. **Code-pull recall split threshold (Fable R3 fix)** — no separate pass/fail bar is set yet for code-sourced vs. keyword-sourced recall (§5.1); confirm whether one should be added once real numbers exist, or whether "visibility only" is sufficient for this pass.
 
 ---
 

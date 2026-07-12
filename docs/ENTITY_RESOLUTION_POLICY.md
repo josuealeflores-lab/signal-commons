@@ -17,6 +17,7 @@
 - No cross-source identity graph (SAM.gov cross-walk, SEC CIK linkage, etc.) — deferred.
 - No automated company **merging** or **splitting** of existing records.
 - No public exposure of aliases or match internals (reviewer/service-role only in M6).
+- **No automatic creation of a draft company for a recipient that appears to be a natural person** (Fable R5 fix — see §2.1). This is a conservative privacy/reputational safeguard, not an entity-matching optimization.
 
 ---
 
@@ -30,6 +31,19 @@
 | — | Website / domain | (future) | Not available from USAspending; deferred to enrichment connectors. |
 
 **Rule:** UEI is the only identifier strong enough to drive an automatic *reuse* of an existing company. Name alone never auto-reuses and never auto-creates-as-duplicate — name conflicts route to human review.
+
+### 2.1 Person-named-recipient check (Fable R5 fix — see D-085)
+
+USAspending recipients are not always companies — sole proprietorships and individual-named awardees appear in real federal award data. **The connector must never automatically create a draft company for a recipient that appears to be a natural person.** This check runs specifically at the point where the match decision (§5, branch 2a) would otherwise create a new draft company for an unmatched UEI — never at the MATCH (reuse) branch, since reusing an already-existing company record isn't creating a new person-named profile.
+
+**Provisional heuristic (candidate to refine, not final truth):**
+- `recipient_name` matches a `"Last, First"` or `"Last, First Middle"` comma-inverted pattern common to USAspending individual/sole-proprietor records; or
+- `recipient_name` consists of exactly two or three simple word tokens with no legal-entity indicator at all (no `Inc`/`LLC`/`Corp`/`Co`/`Ltd`/`Company`/etc. — see the normalization suffix list, §4) and no other business-identifying signal (no DBA, no `parent_uei`); or
+- Any structured "business type"/recipient-type field available from the API (if present in the actual response) explicitly flags an individual/sole-proprietor recipient type — this should be checked first if available, since it's more reliable than name-pattern guessing.
+
+**On a match:** route to an `entity_match` research item with `reason='possible_individual'` (extending the §7 payload's `reason` enum), or exclude the record entirely — either way, **no draft company is auto-created.** A human reviewer decides whether and how to proceed (e.g., confirming it's actually a business operating under a personal name, vs. genuinely an individual that shouldn't become a company profile).
+
+**Why this is conservative by design, not an accuracy optimization:** an automatically-created company profile for what is actually a named individual is a real privacy and reputational risk — publishing (even as an internal draft) a "company" record built around a private citizen's name is a materially different harm than a merely-inaccurate entity match. This check is deliberately biased toward over-flagging (routing more borderline cases to human review) rather than under-flagging.
 
 ---
 
@@ -80,9 +94,17 @@ For each incoming recipient `(uei, legal_name, parent_uei, parent_name)`:
 
 2. If uei present AND NO company has that uei alias:
       2a. If NO company has a matching normalized legal_name:
-             → NEW  → create is_demo=false draft company + insert
-                      ('uei', ...) and ('legal_name', ...) aliases
-                      + emit a `new_company` research item (queue-only)
+             → Check recipient_name against the person-named-recipient
+               heuristic (§2.1, Fable R5 fix) FIRST, before creating anything:
+               2a-i.  If it appears to be a natural person:
+                        → NEVER auto-create a draft company. Emit an
+                          `entity_match` item with reason='possible_individual'
+                          (or exclude the record entirely), pending human
+                          review judgment.
+               2a-ii. Otherwise:
+                        → NEW  → create is_demo=false draft company + insert
+                                 ('uei', ...) and ('legal_name', ...) aliases
+                                 + emit a `new_company` research item (queue-only)
       2b. If one-or-more companies DO match on normalized legal_name (but not uei):
              → AMBIGUOUS → do NOT reuse, do NOT create blindly;
                            emit an `entity_match` research item with both
@@ -127,7 +149,7 @@ For each incoming recipient `(uei, legal_name, parent_uei, parent_name)`:
     "uei": "...", "legal_name": "...", "parent_uei": "...", "parent_name": "...",
     "source_document_id": "usasp-{...}", "award_id": "{...}"
   },
-  "reason": "name_collision" | "duplicate_uei" | "no_uei" ,
+  "reason": "name_collision" | "duplicate_uei" | "no_uei" | "possible_individual" ,
   "candidates": [
     { "company_id": "...", "matched_on": "legal_name", "normalized_alias": "..." }
   ],
@@ -167,6 +189,7 @@ Reusing the labeling-protocol discipline, build a **small hand-labeled entity se
 
 - **Normalization unit tests:** UEI + name rules against fixtures, including tricky suffix/DBA cases; assert two known-different entities do **not** normalize equal.
 - **Match-decision unit tests:** each branch of §5 (UEI-exact match; UEI-new; name-collision → `entity_match`; duplicate-UEI → conflict; no-UEI → `entity_match`).
+- **Person-named-recipient tests (Fable R5 fix):** recipient names matching the §2.1 heuristic (comma-inverted `"Last, First"`, bare two/three-token names with no legal-entity indicator) never result in an auto-created draft company — they produce an `entity_match` item with `reason='possible_individual'` instead, for both the UEI-present and UEI-absent cases.
 - **Dedup within a run:** two awards, same UEI → one company + one `('uei',...)` alias, no `entity_match`.
 - **False-merge guard:** the labeled entity set's false-merge rate is 0 before UEI-exact auto-reuse is enabled.
 - **Boundary/RLS:** `company_aliases` not anon-readable; alias/company drafts never appear in public reads or demo counts.
