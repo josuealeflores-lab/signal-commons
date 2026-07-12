@@ -79,12 +79,13 @@ Production verification instead uses these fixture-free, mostly read-only checks
 
 Production has zero real, loginable reviewer accounts after Milestone 5 — only the inactive Demo Baseline Reviewer, which cannot log in. To provision one real reviewer, when you're ready:
 
+0. **Before provisioning any real reviewer account tied to Milestone 6 (Fable pre-M6 review fix — see `docs/DECISIONS.md` D-085): enable Supabase Auth's leaked-password protection** (Authentication → Policies, in the production project's dashboard) if it isn't already on. This was flagged as a recommended, zero-code follow-up back in `docs/READINESS_REVIEW.md`'s M5 security review; it becomes a concrete prerequisite the moment a real reviewer account might review real (non-demo) connector-sourced items, not just a generic best practice to get to eventually.
 1. In the Supabase dashboard for the production project: **Authentication → Add User**, with the real reviewer's email and a password (or use the Admin API's `createUser` directly, one-off, with `email_confirm: true`).
 2. Note the created user's UID.
 3. Insert one row into `reviewer_profiles`: `id` = that UID, `display_name` = the reviewer's real name, `is_active = true`. This can be done via the Supabase SQL editor or a small one-off script using the service-role client — never client-side, and never via `supabase/seed-reviewer.ts` (that script is for the dev/CI shared-password fixture set only) or `supabase/seed-baseline-reviewer.ts` (that script is exclusively for the inactive system identity).
 4. The new reviewer can now sign in at `/auth/login` on the production URL and access `/research-queue`/`/reviewer`.
 
-This runbook is documentation only — no real reviewer account was created as part of Milestone 5.
+This runbook is documentation only — no real reviewer account was created as part of Milestone 5 or by this update.
 
 ## Known, accepted, non-blocking follow-ups
 

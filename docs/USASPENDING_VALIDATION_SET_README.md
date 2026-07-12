@@ -22,11 +22,13 @@ Goal: a **real, representative, frozen** sample supporting both a hard recall ga
 
 - **Window:** a recent-but-*not-overlapping* window vs. the connector's first live 90-day pull (e.g. an **older fiscal quarter**), so the gate isn't measured on rows the connector will later ingest. (Confirm — Protocol §7.3.)
 - **Award types:** contracts (`A`,`B`,`C`,`D`) + assistance (`02`–`11`); prime awards only.
-- **Three sub-pulls, combined and de-duplicated:**
-  1. **AI-candidate pull** — descriptions matching strong AI terms (positives + some false-positive traps).
-  2. **Ambiguous pull** — weak-term descriptions (`analytics`, `automation`, `smart`, `intelligent`, `model`, bare `AI`) to load the weak/ambiguous and false-positive slices.
-  3. **Control pull** — random awards with **no** AI terms, spread across agencies/sectors, for true negatives.
-- **Balance to the Protocol §1.1 targets** (case mix + ~18–22 per sector via §3 provisional sector assignment).
+- **Four sub-pulls, combined and de-duplicated (Fable R3 fix — a fourth, code-based pull was added to address sampling-frame bias; see D-085):**
+  1. **AI-candidate pull** — descriptions matching strong AI terms (positives + some false-positive traps). `sample_source = keyword_pull`.
+  2. **Ambiguous pull** — weak-term descriptions (`analytics`, `automation`, `smart`, `intelligent`, `model`, bare `AI`) to load the weak/ambiguous and false-positive slices. `sample_source = ambiguous_pull`.
+  3. **Control pull** — random awards with **no** AI terms, spread across agencies/sectors, for true negatives. `sample_source = control_pull`.
+  4. **Code-based pull (new)** — **no `description` filter at all**; driven instead by the NAICS/PSC/CFDA/agency code candidates already listed in the Field-Mapping Spec §4.2/§4.3. This exists specifically to catch **true positives that describe genuine AI/ML work without using any of the keyword-list terms** — a pure keyword pull structurally cannot find these, since by construction it only ever surfaces records containing a keyword. `sample_source = code_pull`. See §3.5 below for the exact query.
+- **Why this matters:** the original three-pull design could systematically overstate Stage-1 recall, because every candidate it samples was *already* selected by matching a keyword — records that are genuinely AI-relevant but described in code-only terms (e.g. an agriculture ML award whose description never says "AI" or "machine learning" but carries an AI-relevant CFDA/NAICS code) would never enter the labeled set at all, and so could never count against recall. The code-based pull closes this gap.
+- **Balance to the Protocol §1.1 targets** (case mix + ~18–22 per sector via §3 provisional sector assignment); the code-based pull's positives count toward the same per-sector targets.
 - **Freeze**: store `award_id`, all captured fields (Protocol §1.2), and `retrieved_at`. Do not re-pull mid-labeling.
 
 ## 3. Exact query bodies for Code / a human to run (read-only)
@@ -53,7 +55,27 @@ Repeat with `"description"` set to each of: `machine learning`, `deep learning`,
 
 **3.3 Control pull** — same endpoint with **no `description` filter**, random pages across a spread of `awarding_agencies` (or omit and page deeply), to collect true-negative awards. Optionally filter by NAICS/PSC/agency to spread sectors.
 
-**3.4 Recipient detail (entity set)** — for entity pairs, capture `Recipient UEI`, `Recipient Name`, and parent fields from the same rows; where parent info isn't in the search fields, `GET https://api.usaspending.gov/api/v2/awards/{generated_internal_id}/` (this **is** a GET endpoint) returns full award detail including recipient parent data.
+**3.5 Code-based pull (Fable R3 fix — new)** — same endpoint, **no `description` filter**, filtered instead by the Field-Mapping Spec's §4.2/§4.3 candidate code sets:
+```json
+{
+  "filters": {
+    "award_type_codes": ["A","B","C","D","02","03","04","05"],
+    "time_period": [{"start_date":"2025-01-01","end_date":"2025-03-31"}],
+    "naics_codes": ["541511","541512","541513","541519","518210","541715","541714","541713","541690"],
+    "psc_codes": ["DA01","DA10"],
+    "agencies": [{"type":"awarding","tier":"toptier","name":"National Science Foundation"},
+                 {"type":"awarding","tier":"toptier","name":"Department of Energy"},
+                 {"type":"awarding","tier":"toptier","name":"National Institutes of Health"}]
+  },
+  "fields": ["Award ID","Recipient Name","Recipient UEI","Awarding Agency","Awarding Sub Agency",
+             "Award Amount","Award Type","Start Date","NAICS Code","PSC Code","CFDA Number","Description",
+             "generated_internal_id"],
+  "page": 1, "limit": 100, "sort": "Award Amount", "order": "desc"
+}
+```
+Repeat varying the NAICS/PSC/CFDA/agency combination to cover the full candidate sets in Field-Mapping Spec §4.2/§4.3, and to reach into sectors under-represented by the keyword/ambiguous/control pulls. Tag every record surfaced only by this pull (i.e. not already present in pulls 3.1–3.3) with `sample_source = code_pull`.
+
+**3.6 Recipient detail (entity set)** — for entity pairs, capture `Recipient UEI`, `Recipient Name`, and parent fields from the same rows; where parent info isn't in the search fields, `GET https://api.usaspending.gov/api/v2/awards/{generated_internal_id}/` (this **is** a GET endpoint) returns full award detail including recipient parent data.
 
 > Field names in `fields`/results may vary slightly by API version — reconcile against the live response, and **re-verify the access facts** (no auth, no hard rate limit) at pull time, per the Source Assessment's own caveat. **If the API now requires a key or enforces a documented hard limit, STOP and report the discrepancy** before proceeding.
 
@@ -64,6 +86,7 @@ See the Labeling Protocol (§1.3 Stage-1 labels; §2.3 entity labels). Data file
 ## 5. How acceptance metrics are computed
 Full formulas in Labeling Protocol §5. In short:
 - **Stage-1 hard gate:** recall ≥ 0.90 overall **and** ≥ 0.80 per sector (with n reported; tiny-n sectors → grow the slice, don't auto-fail).
+- **Stage-1 recall by `sample_source` (Fable R3 fix, in addition to the above, not a replacement for it):** recall must also be reported **separately for keyword-sourced positives (`keyword_pull`/`ambiguous_pull`) vs. code-sourced positives (`code_pull`)**. A low code-sourced recall specifically would indicate the Stage-1 filter is missing genuinely AI-relevant awards that don't use any keyword — exactly the sampling-frame-bias risk this fourth pull exists to surface. See Labeling Protocol §5.1.
 - **Stage-1 FP:** measured + reported; **not** a hard gate this pass (advisory future target ≤ 0.35 FP / ≥ 0.5 precision).
 - **Entity gate:** **0 false merges** in the labeled set before UEI-exact auto-reuse is trusted; missed-match rate reported but tolerated.
 
@@ -79,11 +102,13 @@ Full formulas in Labeling Protocol §5. In short:
 1. **Owner of the real pull + labeling** (Code vs human).
 2. **Sampling window** (older quarter; must not overlap the first live 90-day connector pull).
 3. **Tiny-sector recall handling** (grow-and-re-measure vs auto-fail) — recommended: grow-and-re-measure with n reported.
-4. **Labeler count / adjudication** (single vs ≥2 + agreement).
+4. **Labeler count / adjudication — resolved (Fable follow-up):** dual-label **20–30% of the real validation data** (both sets) and report inter-rater agreement on that subset; single-label the remainder. Not left fully open.
 5. **Accept the provisional sector heuristic** (Protocol §3) as candidate-to-validate with override + `sector_unclear`?
 6. **Accept FP as measure-only** this pass (recall is the sole hard gate)?
 7. **Accept "0 false merges" bar** as tied specifically to the UEI-exact-only rule (Protocol §6)?
 8. **Re-verify API access facts at pull time**, and stop-and-report if they've changed.
+9. **Retention policy — elevated (Fable follow-up):** must be decided **before the first real pull**, not left open indefinitely (Field-Mapping Spec §16.4).
+10. **Code-based pull (§3.5) code-set coverage** — confirm the NAICS/PSC/agency combination above is sufficient to reach under-represented sectors, or whether additional passes are needed per sector.
 
 ---
 
