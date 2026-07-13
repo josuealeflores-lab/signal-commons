@@ -35,6 +35,8 @@
 ### 1.2 Input fields captured per record (read-only from the API)
 `award_id` (generated_internal_id), `award_type`, `recipient_name`, `recipient_uei`, `awarding_agency`, `awarding_sub_agency`, `award_description`, `naics_code`+`naics_description`, `psc_code`+`psc_description`, `cfda_number`+`cfda_title`, `action_date`, `award_amount`, `source_url`, **`sample_source`** (Fable R3 fix — one of `keyword_pull` / `ambiguous_pull` / `control_pull` / `code_pull`, per README §2/§3; recorded at sampling time, not shown to the labeler as a hint — it's provenance metadata, not a label). (No `stage1_*` fields are shown to the labeler — see §0.)
 
+**Note (D-087) on `action_date`:** no reliable USAspending Award Search action/transaction-date field has been confirmed (diagnostic testing found `Action Date` and `Date Signed` both `null` on a tested record, and `Last Modified Date` is a system record-update timestamp, not a transaction date). **Do not infer `action_date` from `Start Date`** — the two are not established to represent the same thing. If no confirmed action/transaction date is available for a record, `action_date` should remain **null/unknown**; `Start Date` is preserved as a separate context field. `action_date` must not be treated as proof of Q1 2025 sampling-window compliance unless a future confirmed source field replaces this note.
+
 ### 1.3 Labels the human assigns
 | Label | Values |
 |---|---|
