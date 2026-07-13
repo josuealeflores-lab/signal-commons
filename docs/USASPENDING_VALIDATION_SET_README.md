@@ -129,6 +129,14 @@ Repeat both (contracts + assistance/grant) varying the NAICS/PSC/CFDA/agency com
 
 See the Labeling Protocol (§1.3 Stage-1 labels; §2.3 entity labels). Data files are **JSONL** (one object per line) because of nested Stage-1/entity fields; a flat CSV equivalent is fine if preferred (column order = the input fields followed by the label fields). The first line of each `.SAMPLE.jsonl` is a **header/metadata object** marking the file synthetic.
 
+**File tiers (D-088): RAW → POOL → CANDIDATES → BLIND.** Each real-data set now has four files, not one:
+- **`*.RAW.jsonl`** — every raw hit from every sub-pull request, pre-dedup.
+- **`*.POOL.jsonl`** — deduplicated by `generated_internal_id` (Stage-1) or grouped by recipient (entity-resolution), tagged with `sample_source`/`candidate_reason`, but **not yet downsampled** to a validation-set size.
+- **`*.CANDIDATES.jsonl`** — the final, deliberately downsampled set (~150 Stage-1, ~75 entity-resolution) that acceptance metrics are computed against. Retains `sample_source`/`sector_provisional` (Stage-1) and `candidate_reason`/`normalized_name*` (entity-resolution) as **provenance metadata for scoring** — never as fields a labeler should see.
+- **`*.BLIND.jsonl`** — the **only labeler-facing file**. Derived from `CANDIDATES.jsonl` with every priming/provenance field removed (`sample_source`, `query_label`, `sector_provisional` for Stage-1; `candidate_reason`, `normalized_name`/`normalized_name_a`/`normalized_name_b` for entity-resolution). Every BLIND row carries the same stable ID as its source CANDIDATES row (`generated_internal_id` for Stage-1; `award_id_a`(+`award_id_b`) for entity-resolution) so labels can be **joined back onto `CANDIDATES.jsonl` only after labeling is complete** — never before, and never by exposing the hidden fields mid-labeling.
+
+**Retention:** all four tiers, for both validation sets, contain real USAspending data and remain **local/untracked and uncommitted** until a separate, explicit commit decision is made.
+
 ## 5. How acceptance metrics are computed
 Full formulas in Labeling Protocol §5. In short:
 - **Stage-1 hard gate:** recall ≥ 0.90 overall **and** ≥ 0.80 per sector (with n reported; tiny-n sectors → grow the slice, don't auto-fail).
@@ -147,7 +155,7 @@ Full formulas in Labeling Protocol §5. In short:
 
 ## 7. Open questions / decisions needed before Code lands these artifacts
 1. **Owner of the real pull + labeling** (Code vs human).
-2. **Sampling window** (older quarter; must not overlap the first live 90-day connector pull).
+2. **Sampling window — resolved (D-087/D-088):** the sampling frame is defined operationally as whatever USAspending Award Search's `time_period` filter returns for the approved date range; `Start Date` is context only, never a rejection gate. Real collection completed against Q1 2025 with this rule applied throughout. Not left open.
 3. **Tiny-sector recall handling** (grow-and-re-measure vs auto-fail) — recommended: grow-and-re-measure with n reported.
 4. **Labeler count / adjudication — resolved (Fable follow-up):** dual-label **20–30% of the real validation data** (both sets) and report inter-rater agreement on that subset; single-label the remainder. Not left fully open.
 5. **Accept the provisional sector heuristic** (Protocol §3) as candidate-to-validate with override + `sector_unclear`?
@@ -155,7 +163,7 @@ Full formulas in Labeling Protocol §5. In short:
 7. **Accept "0 false merges" bar** as tied specifically to the UEI-exact-only rule (Protocol §6)?
 8. **Re-verify API access facts at pull time**, and stop-and-report if they've changed.
 9. **Retention policy — elevated (Fable follow-up):** must be decided **before the first real pull**, not left open indefinitely (Field-Mapping Spec §16.4).
-10. **Code-based pull (§3.5) code-set coverage** — confirm the NAICS/PSC/agency combination above is sufficient to reach under-represented sectors, or whether additional passes are needed per sector.
+10. **Code-based pull (§3.5) code-set coverage — resolved for `politics-civic-technology` (D-088):** the original four sub-pulls left this sector at 0 records; a bounded 6-request `supplemental_pull` (EAC/FEC, Library of Congress, "election security" description query) closed the gap, adding 105 real records (103 sector-taggable). Stage-1 `CANDIDATES.jsonl` now has all seven sectors represented, with `politics-civic-technology` at 18. Other sectors' coverage was not re-assessed beyond what the original four sub-pulls produced.
 
 ---
 
