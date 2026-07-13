@@ -21,7 +21,7 @@
 Goal: a **real, representative, frozen** sample supporting both a hard recall gate and a reported false-positive rate — which requires **positives, negatives, and false-positive traps**, not a pure keyword pull.
 
 - **Window:** a recent-but-*not-overlapping* window vs. the connector's first live 90-day pull (e.g. an **older fiscal quarter**), so the gate isn't measured on rows the connector will later ingest. (Confirm — Protocol §7.3.)
-- **Award types:** contracts (`A`,`B`,`C`,`D`) + assistance (`02`–`11`); prime awards only.
+- **Award types:** contracts (`A`,`B`,`C`,`D`) + assistance (`02`–`11`); prime awards only. **Note (D-086):** USAspending rejects any `award_type_codes` filter that mixes more than one award-type group in a single request (HTTP 422). Every sub-pull below runs as **two separate requests** — one contracts-only, one assistance/grant-only — with results combined and deduped by `generated_internal_id`. This is a request-mechanics correction only; it does not change the validation gates or labeling rules.
 - **Four sub-pulls, combined and de-duplicated (Fable R3 fix — a fourth, code-based pull was added to address sampling-frame bias; see D-085):**
   1. **AI-candidate pull** — descriptions matching strong AI terms (positives + some false-positive traps). `sample_source = keyword_pull`.
   2. **Ambiguous pull** — weak-term descriptions (`analytics`, `automation`, `smart`, `intelligent`, `model`, bare `AI`) to load the weak/ambiguous and false-positive slices. `sample_source = ambiguous_pull`.
@@ -36,10 +36,14 @@ Goal: a **real, representative, frozen** sample supporting both a hard recall ga
 > These are `POST` requests. Run them from an environment with real HTTP (not the assistant's GET-only fetch). No auth header needed. Respect a polite rate (≤ ~1 req/s).
 
 **3.1 AI-candidate pull** — `POST https://api.usaspending.gov/api/v2/search/spending_by_award/`
+
+**Note (D-086):** do not combine contract and assistance/grant `award_type_codes` in one request — USAspending rejects mixed award-type groups with HTTP 422 (`"'award_type_codes' must only contain types from one group."`). Run the **contracts request** and the **assistance/grant request** below separately, then combine results and dedupe by `generated_internal_id`.
+
+Contracts request:
 ```json
 {
   "filters": {
-    "award_type_codes": ["A","B","C","D","02","03","04","05"],
+    "award_type_codes": ["A","B","C","D"],
     "time_period": [{"start_date":"2025-01-01","end_date":"2025-03-31"}],
     "description": "artificial intelligence"
   },
@@ -49,17 +53,37 @@ Goal: a **real, representative, frozen** sample supporting both a hard recall ga
   "page": 1, "limit": 100, "sort": "Award Amount", "order": "desc"
 }
 ```
-Repeat with `"description"` set to each of: `machine learning`, `deep learning`, `natural language processing`, `computer vision`, `autonomous`, `large language model`, `predictive analytics`. (The `description` filter is a substring match; combine results, dedup by `generated_internal_id`.)
 
-**3.2 Ambiguous pull** — same endpoint, `"description"` ∈ {`analytics`, `automation`, `smart`, `intelligent`, `optimization`, `algorithm`}.
-
-**3.3 Control pull** — same endpoint with **no `description` filter**, random pages across a spread of `awarding_agencies` (or omit and page deeply), to collect true-negative awards. Optionally filter by NAICS/PSC/agency to spread sectors.
-
-**3.5 Code-based pull (Fable R3 fix — new)** — same endpoint, **no `description` filter**, filtered instead by the Field-Mapping Spec's §4.2/§4.3 candidate code sets:
+Assistance/grant request (identical except `award_type_codes`):
 ```json
 {
   "filters": {
-    "award_type_codes": ["A","B","C","D","02","03","04","05"],
+    "award_type_codes": ["02","03","04","05"],
+    "time_period": [{"start_date":"2025-01-01","end_date":"2025-03-31"}],
+    "description": "artificial intelligence"
+  },
+  "fields": ["Award ID","Recipient Name","Recipient UEI","Awarding Agency","Awarding Sub Agency",
+             "Award Amount","Award Type","Start Date","NAICS Code","PSC Code","CFDA Number","Description",
+             "generated_internal_id"],
+  "page": 1, "limit": 100, "sort": "Award Amount", "order": "desc"
+}
+```
+
+Repeat both (contracts + assistance/grant) with `"description"` set to each of: `machine learning`, `deep learning`, `natural language processing`, `computer vision`, `autonomous`, `large language model`, `predictive analytics`. (The `description` filter is a substring match; combine all results, dedup by `generated_internal_id`.)
+
+**3.2 Ambiguous pull** — same endpoint, `"description"` ∈ {`analytics`, `automation`, `smart`, `intelligent`, `optimization`, `algorithm`}. **Same D-086 note applies:** run as separate contracts (`["A","B","C","D"]`) and assistance/grant (`["02","03","04","05"]`) requests per description term, then combine and dedupe by `generated_internal_id`.
+
+**3.3 Control pull** — same endpoint with **no `description` filter**, random pages across a spread of `awarding_agencies` (or omit and page deeply), to collect true-negative awards. Optionally filter by NAICS/PSC/agency to spread sectors. **Same D-086 note applies:** if `award_type_codes` is specified, run separate contracts and assistance/grant requests and combine/dedupe by `generated_internal_id` — do not mix groups in one request.
+
+**3.5 Code-based pull (Fable R3 fix — new)** — same endpoint, **no `description` filter**, filtered instead by the Field-Mapping Spec's §4.2/§4.3 candidate code sets.
+
+**Note (D-086):** as with §3.1, do not combine contract and assistance/grant `award_type_codes` in one request — run the **contracts request** and the **assistance/grant request** below separately, then combine results and dedupe by `generated_internal_id`.
+
+Contracts request:
+```json
+{
+  "filters": {
+    "award_type_codes": ["A","B","C","D"],
     "time_period": [{"start_date":"2025-01-01","end_date":"2025-03-31"}],
     "naics_codes": ["541511","541512","541513","541519","518210","541715","541714","541713","541690"],
     "psc_codes": ["DA01","DA10"],
@@ -73,7 +97,27 @@ Repeat with `"description"` set to each of: `machine learning`, `deep learning`,
   "page": 1, "limit": 100, "sort": "Award Amount", "order": "desc"
 }
 ```
-Repeat varying the NAICS/PSC/CFDA/agency combination to cover the full candidate sets in Field-Mapping Spec §4.2/§4.3, and to reach into sectors under-represented by the keyword/ambiguous/control pulls. Tag every record surfaced only by this pull (i.e. not already present in pulls 3.1–3.3) with `sample_source = code_pull`.
+
+Assistance/grant request (identical except `award_type_codes`):
+```json
+{
+  "filters": {
+    "award_type_codes": ["02","03","04","05"],
+    "time_period": [{"start_date":"2025-01-01","end_date":"2025-03-31"}],
+    "naics_codes": ["541511","541512","541513","541519","518210","541715","541714","541713","541690"],
+    "psc_codes": ["DA01","DA10"],
+    "agencies": [{"type":"awarding","tier":"toptier","name":"National Science Foundation"},
+                 {"type":"awarding","tier":"toptier","name":"Department of Energy"},
+                 {"type":"awarding","tier":"toptier","name":"National Institutes of Health"}]
+  },
+  "fields": ["Award ID","Recipient Name","Recipient UEI","Awarding Agency","Awarding Sub Agency",
+             "Award Amount","Award Type","Start Date","NAICS Code","PSC Code","CFDA Number","Description",
+             "generated_internal_id"],
+  "page": 1, "limit": 100, "sort": "Award Amount", "order": "desc"
+}
+```
+
+Repeat both (contracts + assistance/grant) varying the NAICS/PSC/CFDA/agency combination to cover the full candidate sets in Field-Mapping Spec §4.2/§4.3, and to reach into sectors under-represented by the keyword/ambiguous/control pulls. Tag every record surfaced only by this pull (i.e. not already present in pulls 3.1–3.3) with `sample_source = code_pull`.
 
 **3.6 Recipient detail (entity set)** — for entity pairs, capture `Recipient UEI`, `Recipient Name`, and parent fields from the same rows; where parent info isn't in the search fields, `GET https://api.usaspending.gov/api/v2/awards/{generated_internal_id}/` (this **is** a GET endpoint) returns full award detail including recipient parent data.
 
