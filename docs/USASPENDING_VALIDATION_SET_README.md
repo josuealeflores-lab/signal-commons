@@ -20,7 +20,7 @@
 
 Goal: a **real, representative, frozen** sample supporting both a hard recall gate and a reported false-positive rate — which requires **positives, negatives, and false-positive traps**, not a pure keyword pull.
 
-- **Window:** a recent-but-*not-overlapping* window vs. the connector's first live 90-day pull (e.g. an **older fiscal quarter**), so the gate isn't measured on rows the connector will later ingest. (Confirm — Protocol §7.3.)
+- **Window:** a recent-but-*not-overlapping* window vs. the connector's first live 90-day pull (e.g. an **older fiscal quarter**), so the gate isn't measured on rows the connector will later ingest. (Confirm — Protocol §7.3.) **Note (D-087):** the sampling frame is defined **operationally** — it is whatever award records USAspending Award Search's `time_period` filter returns for the given date range (`2025-01-01`–`2025-03-31`), using USAspending's own filter semantics as the source of truth. Diagnostic testing found that a record's `Start Date` can fall well outside this range while still being returned by the filter (e.g. a multi-year award that started years earlier); no returned point-in-time field (`Start Date`, `Action Date`, `Date Signed`, `Last Modified Date`) was confirmed to explain this. **Do not use `Start Date` alone to reject records from the sample** — it is retained as descriptive context only. See §6 for the full source-limitation note.
 - **Award types:** contracts (`A`,`B`,`C`,`D`) + assistance (`02`–`11`); prime awards only. **Note (D-086):** USAspending rejects any `award_type_codes` filter that mixes more than one award-type group in a single request (HTTP 422). Every sub-pull below runs as **two separate requests** — one contracts-only, one assistance/grant-only — with results combined and deduped by `generated_internal_id`. This is a request-mechanics correction only; it does not change the validation gates or labeling rules.
 - **Four sub-pulls, combined and de-duplicated (Fable R3 fix — a fourth, code-based pull was added to address sampling-frame bias; see D-085):**
   1. **AI-candidate pull** — descriptions matching strong AI terms (positives + some false-positive traps). `sample_source = keyword_pull`.
@@ -34,6 +34,8 @@ Goal: a **real, representative, frozen** sample supporting both a hard recall ga
 ## 3. Exact query bodies for Code / a human to run (read-only)
 
 > These are `POST` requests. Run them from an environment with real HTTP (not the assistant's GET-only fetch). No auth header needed. Respect a polite rate (≤ ~1 req/s).
+>
+> **Note (D-087):** every query below uses `time_period` to select the Q1 2025 sampling frame, but the exact field USAspending uses internally to satisfy that filter has **not** been confirmed. Do not reject, discard, or re-filter results based on `Start Date` — accept whatever the `time_period` filter returns as the sample, and record `Start Date` as context only. The D-086 split contract/assistance-per-request rule below is unaffected and remains required.
 
 **3.1 AI-candidate pull** — `POST https://api.usaspending.gov/api/v2/search/spending_by_award/`
 
@@ -135,6 +137,7 @@ Full formulas in Labeling Protocol §5. In short:
 - **Entity gate:** **0 false merges** in the labeled set before UEI-exact auto-reuse is trusted; missed-match rate reported but tolerated.
 
 ## 6. Limitations
+- **Sampling-window compliance field unconfirmed (D-087)** — USAspending Award Search's `time_period` filter can return records whose `Start Date` falls outside the requested date range (confirmed via diagnostic: a record with `Start Date = 2020-04-23` was returned by a `2025-01-01`–`2025-03-31` `time_period` query). Diagnostic testing of `Action Date`, `Date Signed`, and `Last Modified Date` did not identify a reliable alternative point-in-time field — `Action Date` and `Date Signed` were `null` on the tested record, and `Last Modified Date` is a system record-update timestamp, not a transaction date. **The sampling frame is therefore defined by USAspending's own filter result set, not by any single date field on the returned records.** `Start Date` is preserved on every record as descriptive context but must not be used to reject records or judge window compliance. This is a genuine source limitation of the Award Search endpoint, not a project-side sampling error.
 - **No assistant-pulled real data** (POST limitation, §1). The scored sets depend on Code/human executing §3.
 - **Sector heuristic is provisional** (Protocol §3) — agency/CFDA/NAICS/PSC → sector is coarse; NSF and cross-cutting programs are genuinely ambiguous; `sector_unclear` absorbs these.
 - **Award descriptions are terse** — the core USAspending limitation; some records are unclassifiable from the description alone and correctly land in `ai_adjacent_insufficient`.
