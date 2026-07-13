@@ -17,6 +17,19 @@
 - **Real, representative, frozen.** The scored set is a fixed snapshot of real awards. Synthetic rows illustrate the schema only.
 - **Two axes stay separate** throughout: *is the scope AI?* vs *is the recipient an AI company?* (Assessment §10).
 
+**Concrete operationalization (D-088):** the blind-labeling principle above is now a real file, not just a stated intent — labeling happens against **`stage1_validation_set.BLIND.jsonl`** and **`entity_resolution_validation_set.BLIND.jsonl`**, never against the corresponding `CANDIDATES.jsonl` files directly. `CANDIDATES.jsonl` retains `sample_source`/`sector_provisional`/`candidate_reason`/`normalized_name*` for scoring; `BLIND.jsonl` strips all of it and carries only the stable join ID (`generated_internal_id` for Stage-1; `award_id_a`(+`award_id_b`) for entity-resolution) needed to rejoin labels afterward.
+
+### 0.1 Labeling-readiness checklist (D-088)
+
+- [ ] Label **only** `stage1_validation_set.BLIND.jsonl` and `entity_resolution_validation_set.BLIND.jsonl` — never `CANDIDATES.jsonl` directly.
+- [ ] Preserve the join ID on every labeled row — do not rename, drop, or regenerate IDs during labeling.
+- [ ] Never expose `sample_source`, `sector_provisional`, `candidate_reason`, or `normalized_name*` to labelers at any point in the process.
+- [ ] Dual-label 20–30% of both sets and report inter-rater agreement on that subset.
+- [ ] After labeling, join labels back onto the corresponding `CANDIDATES.jsonl` row by ID to produce `LABELED.jsonl`.
+- [ ] Report Stage-1 recall overall, by sector, **and** by `sample_source` (§5.1).
+- [ ] Report the Stage-1 false-positive rate (measure-only, not a hard gate).
+- [ ] Report the entity-resolution false-merge count (hard gate: 0) and missed-match rate (measured, tolerated).
+
 ---
 
 ## 1. Stage-1 AI-Relevance Validation Set
@@ -61,6 +74,8 @@
 ---
 
 ## 2. Entity-Resolution Validation Set
+
+**Known-absent categories this round (D-088):** the completed 75-record `CANDIDATES.jsonl` has **zero** `possible_individual` and **zero** `parent_subsidiary` items — not thin, absent. Both are collection-tooling gaps (the R5 person-heuristic was never wired into candidate-reason tagging; the 5 collected recipient-detail GET responses were never parsed into a confirmed parent/subsidiary relationship), not evidence these cases don't exist in the real data. Labelers should not expect to see either category in this round; do not fabricate examples.
 
 ### 2.1 Size and composition
 - **Target: 75 items** (range 50–100), a mix of:

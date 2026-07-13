@@ -45,6 +45,8 @@ USAspending recipients are not always companies — sole proprietorships and ind
 
 **Why this is conservative by design, not an accuracy optimization:** an automatically-created company profile for what is actually a named individual is a real privacy and reputational risk — publishing (even as an internal draft) a "company" record built around a private citizen's name is a materially different harm than a merely-inaccurate entity match. This check is deliberately biased toward over-flagging (routing more borderline cases to human review) rather than under-flagging.
 
+**Validation status (D-088):** this connector-time safeguard is **not yet validated** by the completed entity-resolution validation set — the 75-record `CANDIDATES.jsonl`/`BLIND.jsonl` has zero `possible_individual` examples, a documented collection-tooling gap (the heuristic above was only ever wired into a collection-time reporting/stop-condition check during the validation pull, never into actual candidate-reason tagging). **Any future milestone that has real connector logic depend on this safeguard must close that gap and produce validated `possible_individual` examples first** — this round's PROCEED decision covers the UEI-exact false-merge gate only, not R5's real-world accuracy.
+
 ---
 
 ## 3. Storage model (`company_aliases`, added in M6)
@@ -81,6 +83,8 @@ Deterministic, documented, and applied identically at write time and match time 
 6. Collapse remaining tokens to a single normalized string.
 
 > These rules are **candidates to validate** (like the Stage-1 code sets), because over-aggressive suffix/token stripping can collapse genuinely different entities (e.g. "Delta LLC" vs "Delta Corp" may or may not be the same). The validation set (§8) measures false-merge risk before these are trusted.
+
+**Implementation rule, confirmed the hard way (D-088):** rule 4's "as separate tokens" is load-bearing, not stylistic — a first implementation stripped suffixes via an unanchored substring match instead of whole-token matching, which silently corrupted unrelated names containing a suffix as a substring (e.g. `"Columbia"` → `"lumbia"`, since `"co"` matched inside the word). **Suffix stripping must only ever remove a suffix when it is the exact trailing whitespace-delimited token — never a substring match anywhere in the name.** This was fixed and the entity-resolution POOL/CANDIDATES were regenerated from the corrected logic; verified against real production data (`"Columbia University"`, `"Columbia Power Technologies"`, `"District of Columbia"` all normalize correctly post-fix).
 
 ---
 
