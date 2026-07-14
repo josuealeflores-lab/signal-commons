@@ -64,4 +64,37 @@ describe("seeded row counts (service-role client, bypasses RLS)", () => {
   it("app_meta: 1", async () => {
     expect(await countRows("app_meta")).toBe(1);
   });
+
+  it("company_aliases: 0", async () => {
+    expect(await countRows("company_aliases")).toBe(0);
+  });
+
+  it("ingestion_runs: 0", async () => {
+    expect(await countRows("ingestion_runs")).toBe(0);
+  });
+});
+
+describe("research_items.is_demo defaults (service-role client, bypasses RLS)", () => {
+  it("every research_items row has is_demo = true", async () => {
+    const supabase = getTestServiceClient();
+
+    const { count: totalCount, error: totalError } = await supabase
+      .from("research_items")
+      .select("*", { count: "exact", head: true });
+    expect(totalError).toBeNull();
+
+    const { count: falseCount, error: falseError } = await supabase
+      .from("research_items")
+      .select("*", { count: "exact", head: true })
+      .eq("is_demo", false);
+    expect(falseError).toBeNull();
+    expect(falseCount).toBe(0);
+
+    const { count: trueCount, error: trueError } = await supabase
+      .from("research_items")
+      .select("*", { count: "exact", head: true })
+      .eq("is_demo", true);
+    expect(trueError).toBeNull();
+    expect(trueCount).toBe(totalCount);
+  });
 });
