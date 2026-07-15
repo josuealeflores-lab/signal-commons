@@ -1,0 +1,57 @@
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+/**
+ * Hermetic, filesystem-only (no DB, no live API) -- confirms nothing
+ * app-facing or in the public data layer ever imports the USAspending
+ * connector modules or the service-role client. Scans src/app (public
+ * routes), src/components (shared UI), and src/lib/data (the public
+ * data-access layer) -- the three places connector/service-role code must
+ * never leak into. Isolation is enforced by (a) these modules never being
+ * referenced from any of the three, and (b) this grep-based check, not by
+ * any runtime guard (the connector modules are deliberately not
+ * `server-only`-guarded so they stay hermetically testable under plain
+ * `npm test` -- see http-client.ts's header comment).
+ */
+
+const SRC_ROOT = path.resolve(__dirname, "..", "..", "src");
+const SCANNED_DIRS = ["app", "components", "lib/data"];
+const FORBIDDEN_IMPORT_PATTERNS = [/lib\/connectors\//, /service-client/];
+
+function listFilesRecursive(dir: string): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listFilesRecursive(fullPath));
+    } else if (/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function findOffenders(dir: string): string[] {
+  const files = listFilesRecursive(dir);
+  const offenders: string[] = [];
+
+  for (const file of files) {
+    const content = fs.readFileSync(file, "utf-8");
+    if (FORBIDDEN_IMPORT_PATTERNS.some((pattern) => pattern.test(content))) {
+      offenders.push(file);
+    }
+  }
+
+  return offenders;
+}
+
+describe("no-connector-leakage", () => {
+  it.each(SCANNED_DIRS)("no file under src/%s imports src/lib/connectors/** or service-client.ts", (relativeDir) => {
+    const offenders = findOffenders(path.join(SRC_ROOT, relativeDir));
+    expect(offenders).toEqual([]);
+  });
+});

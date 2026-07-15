@@ -14,3 +14,11 @@ blob-report/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Milestone 6B: local-only USAspending connector dry-run reports. These can
+# contain real recipient/award data (including possible_individual flags on
+# real people) pulled from the live USAspending API, so this is a structural
+# gitignore entry, not just "left untracked by discipline" the way
+# docs/research/'s labeling-validation artifacts are. Never commit anything
+# under this directory (docs/DECISIONS.md D-089/D-090/M6B plan).
+connector-runs/
