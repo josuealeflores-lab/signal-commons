@@ -17,7 +17,12 @@ import { describe, expect, it } from "vitest";
 
 const SRC_ROOT = path.resolve(__dirname, "..", "..", "src");
 const SCANNED_DIRS = ["app", "components", "lib/data"];
-const FORBIDDEN_IMPORT_PATTERNS = [/lib\/connectors\//, /service-client/];
+// lib\/connectors\/ already covers commit.ts/commit-serializer.ts/cli-guards.ts
+// (M6C) since they live under src/lib/connectors/usaspending/. connector-usaspending
+// is an additional, explicit pattern for the CLI script itself
+// (supabase/connector-usaspending.ts), which lives outside src/lib/connectors/
+// and so wouldn't otherwise match the first pattern.
+const FORBIDDEN_IMPORT_PATTERNS = [/lib\/connectors\//, /service-client/, /connector-usaspending/];
 
 function listFilesRecursive(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });

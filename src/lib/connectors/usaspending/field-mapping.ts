@@ -124,7 +124,10 @@ export function buildCandidatePreview(
     source_title: sourceTitle,
     publisher: "USAspending.gov (U.S. Department of the Treasury)",
     source_type: "government_award",
-    source_tier: 1,
+    // Text, not number (docs/DECISIONS.md D-092) -- matches
+    // source_documents.source_tier's DB column type and the
+    // commit_usaspending_candidate migration's hardcoded real-record value.
+    source_tier: "1",
     // D-087: event_date is action_date, never inferred from Start Date.
     event_date: fields.actionDate,
     published_at: fields.lastModifiedDate,
