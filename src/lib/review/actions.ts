@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSessionSupabaseClient } from "@/lib/supabase/session-client";
 import { editApproveFieldsSchema, type EditApproveFields, type ReviewActionName } from "./schema";
+import { buildActionNotice, type SubmitReviewActionResult } from "./action-messages";
 
 /**
  * Thin, typed wrappers over the single submit_review_action RPC
@@ -23,6 +24,14 @@ import { editApproveFieldsSchema, type EditApproveFields, type ReviewActionName 
  * non-Promise-wrapped value would be). On failure, redirects back to the
  * research item's own page with an `error` query param, mirroring
  * `auth/login`'s pattern.
+ *
+ * M6D (docs/DECISIONS.md D-094): submit_review_action now returns a small
+ * jsonb status object instead of void. On success, `buildActionNotice`
+ * turns that into a `?notice=` query param so the page can show honest
+ * messaging ("Approved — private, because the linked company is not
+ * published yet") rather than implying a real publish happened. This is a
+ * UI-messaging convenience only, never the safety boundary — the RPC's own
+ * behavior already decided whether anything actually published.
  */
 async function callSubmitReviewAction(
   researchItemId: string,
@@ -31,7 +40,7 @@ async function callSubmitReviewAction(
   editedFields: EditApproveFields | null,
 ): Promise<void> {
   const supabase = await getSessionSupabaseClient();
-  const { error } = await supabase.rpc("submit_review_action", {
+  const { data, error } = await supabase.rpc("submit_review_action", {
     p_research_item_id: researchItemId,
     p_action: action,
     p_reviewer_note: reviewerNote,
@@ -44,6 +53,11 @@ async function callSubmitReviewAction(
 
   if (error) {
     redirect(`/research-queue/${researchItemId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  const notice = buildActionNotice(action, data as SubmitReviewActionResult | null);
+  if (notice) {
+    redirect(`/research-queue/${researchItemId}?notice=${encodeURIComponent(notice)}`);
   }
 }
 

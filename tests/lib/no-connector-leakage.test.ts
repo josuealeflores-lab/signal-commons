@@ -5,18 +5,21 @@ import { describe, expect, it } from "vitest";
 /**
  * Hermetic, filesystem-only (no DB, no live API) -- confirms nothing
  * app-facing or in the public data layer ever imports the USAspending
- * connector modules or the service-role client. Scans src/app (public
- * routes), src/components (shared UI), and src/lib/data (the public
- * data-access layer) -- the three places connector/service-role code must
- * never leak into. Isolation is enforced by (a) these modules never being
- * referenced from any of the three, and (b) this grep-based check, not by
- * any runtime guard (the connector modules are deliberately not
+ * connector modules or the service-role client. Scans src/app (public and
+ * reviewer routes), src/components (shared UI), src/lib/data (the public
+ * data-access layer), and src/lib/review (the reviewer-facing data/action
+ * layer, added in M6D -- docs/DECISIONS.md D-094 -- since the reviewer
+ * queue now does its own company/signal reads and must stay on the session
+ * client, never service-role) -- the places connector/service-role code
+ * must never leak into. Isolation is enforced by (a) these modules never
+ * being referenced from any of the four, and (b) this grep-based check, not
+ * by any runtime guard (the connector modules are deliberately not
  * `server-only`-guarded so they stay hermetically testable under plain
  * `npm test` -- see http-client.ts's header comment).
  */
 
 const SRC_ROOT = path.resolve(__dirname, "..", "..", "src");
-const SCANNED_DIRS = ["app", "components", "lib/data"];
+const SCANNED_DIRS = ["app", "components", "lib/data", "lib/review"];
 // lib\/connectors\/ already covers commit.ts/commit-serializer.ts/cli-guards.ts
 // (M6C) since they live under src/lib/connectors/usaspending/. connector-usaspending
 // is an additional, explicit pattern for the CLI script itself
