@@ -19,7 +19,8 @@
     "db:seed:prod": "node --env-file=.env.production.local --conditions=react-server supabase/seed.ts",
     "db:seed:baseline-reviewer:prod": "node --env-file=.env.production.local --conditions=react-server supabase/seed-baseline-reviewer.ts",
     "db:seed:queue:prod": "node --env-file=.env.production.local --conditions=react-server supabase/seed-research-queue.ts",
-    "connector:usaspending:dry-run": "node supabase/connector-usaspending.ts"
+    "connector:usaspending:dry-run": "node supabase/connector-usaspending.ts",
+    "connector:usaspending:commit": "node --env-file=.env.local --conditions=react-server supabase/connector-usaspending.ts --commit"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

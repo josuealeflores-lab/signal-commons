@@ -104,7 +104,14 @@ export interface SourceDocumentPreview {
   source_title: string;
   publisher: string;
   source_type: string;
-  source_tier: number;
+  /**
+   * text, matching source_documents.source_tier's DB column type (text
+   * since Milestone 3) and the M6C commit_usaspending_candidate migration's
+   * own hardcoded real-record value. Was incorrectly `number` through M6B
+   * dry-run mode -- invisible there because dry-run never writes to the
+   * DB. Fixed as part of M6C (docs/DECISIONS.md D-092).
+   */
+  source_tier: string;
   event_date: string | null;
   published_at: string | null;
   excerpt: string;

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllPlannedRequestKinds, UsaspendingRequestError, type RequestState } from "../src/lib/connectors/usaspending/http-client.ts";
 import {
   computeFieldPresenceStats,
@@ -10,158 +11,110 @@ import { processTaggedAwards } from "../src/lib/connectors/usaspending/pipeline.
 import { type BatchAliasMap } from "../src/lib/connectors/usaspending/entity-resolution-preview.ts";
 import { buildDryRunReport, formatSummary } from "../src/lib/connectors/usaspending/dry-run-report.ts";
 import { ALL_REQUEST_KINDS } from "../src/lib/connectors/usaspending/search.ts";
-import type { AwardRequestKind, RawUsaspendingAward } from "../src/lib/connectors/usaspending/types.ts";
+import type { AwardRequestKind, EntityAliasRecord, RawUsaspendingAward } from "../src/lib/connectors/usaspending/types.ts";
+import {
+  commitCandidateBatch,
+  buildIngestionRunCompletion,
+  type CommitRpcCaller,
+  type CommitRpcResult,
+} from "../src/lib/connectors/usaspending/commit.ts";
+import {
+  parseArgs,
+  computeDefaultWindow,
+  assertDevCiProject,
+  assertExactlyOneActiveReviewer,
+  type CliOptions,
+} from "../src/lib/connectors/usaspending/cli-guards.ts";
 
 /**
- * Milestone 6B USAspending connector -- DRY-RUN ONLY. This script makes
- * live read-only network calls to api.usaspending.gov, but performs ZERO
- * database writes of any kind: no ingestion_runs row, no research_items
- * row, no companies/signals/source_documents/signal_evidence/
- * company_aliases row. It does not import getServiceSupabaseClient or any
- * Supabase client at all -- the entity-resolution preview
- * (src/lib/connectors/usaspending/entity-resolution-preview.ts) is a pure
- * function operating on an empty `existingAliases` array by default,
- * relying on intra-batch matching only (Cowork/Fable's recommended M6B
- * design -- no DB dependency unless a future milestone adds one).
+ * Milestone 6B/6C USAspending connector CLI. Two modes:
  *
- * --commit mode does not exist in this file at all; passing --commit
- * fails loudly rather than silently doing nothing, so a flag typo can
- * never be mistaken for a real commit run.
+ * - dry-run (default): makes live read-only network calls to
+ *   api.usaspending.gov but performs ZERO database writes of any kind. Does
+ *   not import getServiceSupabaseClient at module load time -- see below.
+ * - --commit (M6C): additionally writes real, draft, non-demo rows via the
+ *   commit_usaspending_candidate SECURITY DEFINER RPC (applied to dev/CI
+ *   only as of docs/DECISIONS.md D-092). Requires three independent
+ *   technical guards (not a policy note) to all pass, in order, before any
+ *   fetch or DB call: --confirm-reviewer-control present, the dev/CI
+ *   project allow-list assertion, and a reviewer-control preflight query
+ *   (exactly one active reviewer_profiles row). All three guard
+ *   implementations and CLI flag parsing live in
+ *   src/lib/connectors/usaspending/cli-guards.ts specifically so they're
+ *   importable and hermetically unit-testable -- this file itself has a
+ *   side-effecting top-level `main()` call and must never be imported by a
+ *   test (same reasoning as pipeline.ts's original extraction from this
+ *   file in M6B).
  *
- * NOT run automatically by this implementation step. Do not invoke this
- * script against the live API until a separately-approved manual
- * validation gate (see the M6B plan's §9) -- starting with a minimal
- * read-only smoke test to reconcile the exact request-body field names
- * against the live API, before any full dry-run pull.
+ * getServiceSupabaseClient is imported dynamically, only inside main()'s
+ * --commit branch, never at this file's top level. This is deliberate, not
+ * an oversight: service-client.ts has `import "server-only"`, which throws
+ * immediately under plain `node` (no --conditions=react-server) --
+ * D-044/the dry-run script's own design relies on that flag NOT being
+ * needed for dry-run. A top-level static import of service-client.ts would
+ * break `npm run connector:usaspending:dry-run` (which intentionally never
+ * passes --conditions=react-server) even when --commit is never passed.
+ * `npm run connector:usaspending:commit` (package.json) does pass
+ * --conditions=react-server, so the dynamic import succeeds there.
  *
- * Requests are planned and issued one award_type_group at a time
- * (contracts, then grants, then other_financial_assistance, then
- * direct_payments -- ALL_REQUEST_KINDS's fixed order), never combining
- * codes from more than one group in a single request (D-086, extended
- * after a live 422 showed USAspending enforces this within "assistance"
- * too, not just contracts-vs-assistance). Loans (07/08) are excluded from
- * every request. --max-requests is a hard cap on total live HTTP requests
- * across all groups combined; if the cap is reached before a group's turn,
- * that group (and any after it) is skipped entirely and reported as such
- * -- see fetchAllPlannedRequestKinds's header comment in http-client.ts.
- *
- * Every run also computes aggregate, non-sensitive field-presence counts
- * (via field-mapping.ts's computeFieldPresenceStats) across every fetched/
- * deduped record -- including ones Stage-1 excludes -- so field-mapping
- * coverage stays observable even when a run produces zero candidates.
- * These are presence counts only: never a raw value, recipient name,
- * award description, or example record.
- *
- * `--diagnostic-keyword="<term>"` is a DIAGNOSTIC-ONLY opt-in flag that
- * adds USAspending's `filters.description` keyword filter to every
- * request this run makes, biasing the sample toward matches purely to
- * exercise the candidate-preview path on live data. It is never the
- * default (omitted unless explicitly passed), never changes normal
- * cap-driven behavior, and every report/summary produced with it set is
- * prominently labeled "DIAGNOSTIC KEYWORD-BIASED RUN" with an explicit
- * warning that results are not representative and must never be used for
- * recall/precision estimation or Stage-1 validation.
- *
- * Unlike the supabase/seed*.ts scripts, `connector:usaspending:dry-run`
- * runs plain `node supabase/connector-usaspending.ts` with no
- * `--env-file`/`--conditions=react-server` flags. That's intentional, not
- * an oversight: this script reads zero environment variables (grep
- * confirms no `process.env` usage anywhere in src/lib/connectors/
- * usaspending/ or this file) and needs no Supabase credential of any
- * kind -- USAspending's Award Search endpoint requires no auth, and M6B's
- * entity-resolution preview is a pure function with no DB dependency (see
- * above). If a future milestone adds a real credential requirement (e.g.
- * M6C's --commit mode reading company_aliases), reintroduce
- * `--env-file`/`--conditions=react-server` at that point -- don't assume
- * they're needed here.
+ * There is no production commit script anywhere in package.json --
+ * --commit's dev/CI project assertion is the only thing that would stop a
+ * manually-invoked production run, so no script is added that could
+ * encourage one.
  */
 
-const DEFAULT_MAX_REQUESTS = 10;
-const DEFAULT_MAX_CANDIDATES = 25;
 const DEFAULT_PAGE_LIMIT = 100;
 const OUTPUT_DIR = path.resolve(import.meta.dirname, "..", "connector-runs");
 
-export interface CliOptions {
-  maxRequests: number;
-  maxCandidates: number;
-  /**
-   * DIAGNOSTIC ONLY. Null unless --diagnostic-keyword was explicitly
-   * passed. Never the default request path -- see search.ts's
-   * buildSearchRequestBody header comment.
-   */
-  diagnosticKeyword: string | null;
+/** Bulk-lookup helper: real, non-demo-filtered UEI aliases, feeding previewEntityDecision so it can propose MATCH against already-known real companies (see pipeline.ts's header comment). */
+async function fetchNonDemoUeiAliases(client: SupabaseClient): Promise<EntityAliasRecord[]> {
+  const { data, error } = await client
+    .from("company_aliases")
+    .select("company_id, alias_type, normalized_alias, companies!inner(is_demo)")
+    .eq("alias_type", "uei")
+    .eq("companies.is_demo", false);
+
+  if (error) {
+    throw new Error(`COMMIT MODE ABORTED: failed to load existing non-demo UEI aliases: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    companyId: row.company_id as string,
+    aliasType: row.alias_type as EntityAliasRecord["aliasType"],
+    normalizedAlias: row.normalized_alias as string,
+  }));
 }
 
-function getFlagValue(argv: string[], flag: string, defaultValue: number): number {
-  const exact = argv.indexOf(flag);
-  const prefixed = argv.findIndex((arg) => arg.startsWith(`${flag}=`));
-
-  if (exact !== -1) {
-    const raw = argv[exact + 1];
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
-  }
-
-  if (prefixed !== -1) {
-    const raw = argv[prefixed].split("=")[1];
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
-  }
-
-  return defaultValue;
-}
-
-function getStringFlagValue(argv: string[], flag: string): string | null {
-  const exact = argv.indexOf(flag);
-  const prefixed = argv.findIndex((arg) => arg.startsWith(`${flag}=`));
-
-  if (exact !== -1) {
-    const raw = argv[exact + 1];
-    return raw && !raw.startsWith("--") ? raw : null;
-  }
-
-  if (prefixed !== -1) {
-    const raw = argv[prefixed].slice(argv[prefixed].indexOf("=") + 1);
-    return raw.length > 0 ? raw : null;
-  }
-
-  return null;
-}
-
-export function parseArgs(argv: string[]): CliOptions {
-  if (argv.includes("--commit")) {
-    throw new Error(
-      "--commit is not implemented until Milestone 6C. This script only supports --dry-run in Milestone 6B.",
-    );
-  }
-
-  return {
-    maxRequests: getFlagValue(argv, "--max-requests", DEFAULT_MAX_REQUESTS),
-    maxCandidates: getFlagValue(argv, "--max-candidates", DEFAULT_MAX_CANDIDATES),
-    diagnosticKeyword: getStringFlagValue(argv, "--diagnostic-keyword"),
+async function fetchAndPrepareCandidates(options: CliOptions, existingAliases: EntityAliasRecord[]) {
+  const requestState: RequestState = { requestsSent: 0 };
+  const window = computeDefaultWindow();
+  const httpOptions = {
+    maxRequests: options.maxRequests,
+    ...(options.diagnosticKeyword ? { diagnosticKeyword: options.diagnosticKeyword } : {}),
   };
+
+  const { fetchedByKind, skippedDueToRequestCap } = await fetchAllPlannedRequestKinds(
+    window,
+    DEFAULT_PAGE_LIMIT,
+    options.maxCandidates,
+    requestState,
+    httpOptions,
+  );
+
+  const taggedAwards: TaggedRawAward[] = dedupeAwardsByGeneratedInternalId(
+    ALL_REQUEST_KINDS.flatMap((kind: AwardRequestKind) =>
+      (fetchedByKind[kind] ?? []).map((raw: RawUsaspendingAward) => ({ raw, requestKind: kind })),
+    ),
+  );
+
+  const fieldPresenceStats = computeFieldPresenceStats(taggedAwards);
+  const batchAliasMap: BatchAliasMap = new Map();
+  const { candidates, skipped } = processTaggedAwards(taggedAwards, batchAliasMap, existingAliases);
+
+  return { requestState, skippedDueToRequestCap, fieldPresenceStats, candidates, skipped };
 }
 
-/**
- * Operational sampling window: the trailing 90 days, per the locked
- * spec's Decision 6 -- USAspending's own time_period filter semantics
- * define the actual candidate set (D-087); this is just the requested
- * boundary, never a post-hoc rejection rule.
- */
-export function computeDefaultWindow(now: Date = new Date()): { startDate: string; endDate: string } {
-  const end = now;
-  const start = new Date(now);
-  start.setDate(start.getDate() - 90);
-  return { startDate: toDateString(start), endDate: toDateString(end) };
-}
-
-function toDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-async function main(): Promise<void> {
-  const options = parseArgs(process.argv.slice(2));
-
+async function runDryRunMode(options: CliOptions): Promise<void> {
   console.log(
     `USAspending connector dry-run starting (max_requests=${options.maxRequests}, max_candidates=${options.maxCandidates})`,
   );
@@ -176,27 +129,9 @@ async function main(): Promise<void> {
     );
   }
 
-  const requestState: RequestState = { requestsSent: 0 };
-  const window = computeDefaultWindow();
-  const httpOptions = {
-    maxRequests: options.maxRequests,
-    ...(options.diagnosticKeyword ? { diagnosticKeyword: options.diagnosticKeyword } : {}),
-  };
-
-  // D-086 (extended): one request per USAspending award_type_group --
-  // contracts, then the three non-loan assistance groups (grants,
-  // other_financial_assistance, direct_payments), in that fixed order.
-  // Loans (07/08) are never requested (search.ts's
-  // UNTESTED_LOAN_AWARD_TYPE_CODES). max_requests is a hard cap on total
-  // live HTTP requests across ALL groups combined: once the budget is
-  // exhausted, remaining groups are skipped (not fetched at all) rather
-  // than throwing -- see fetchAllPlannedRequestKinds's header comment.
-  const { fetchedByKind, skippedDueToRequestCap } = await fetchAllPlannedRequestKinds(
-    window,
-    DEFAULT_PAGE_LIMIT,
-    options.maxCandidates,
-    requestState,
-    httpOptions,
+  const { requestState, skippedDueToRequestCap, fieldPresenceStats, candidates, skipped } = await fetchAndPrepareCandidates(
+    options,
+    [],
   );
 
   if (skippedDueToRequestCap.length > 0) {
@@ -204,24 +139,6 @@ async function main(): Promise<void> {
       `PARTIAL RUN: max_requests=${options.maxRequests} was reached before these request kinds could be attempted: ${skippedDueToRequestCap.join(", ")}. They were never fetched -- this is not full connector coverage.`,
     );
   }
-
-  // D-086 dedup: first-seen-wins by generated_internal_id across every
-  // fetched group, in ALL_REQUEST_KINDS's fixed priority order.
-  const taggedAwards: TaggedRawAward[] = dedupeAwardsByGeneratedInternalId(
-    ALL_REQUEST_KINDS.flatMap((kind: AwardRequestKind) =>
-      (fetchedByKind[kind] ?? []).map((raw: RawUsaspendingAward) => ({ raw, requestKind: kind })),
-    ),
-  );
-
-  // Aggregate, non-sensitive field-presence stats across every fetched/
-  // deduped record -- including ones Stage-1 will go on to exclude -- so
-  // field-mapping coverage is observable even on a run that produces zero
-  // candidates. Computed from the same taggedAwards the pipeline consumes,
-  // via the same extractAwardFields() the candidate path uses.
-  const fieldPresenceStats = computeFieldPresenceStats(taggedAwards);
-
-  const batchAliasMap: BatchAliasMap = new Map();
-  const { candidates, skipped } = processTaggedAwards(taggedAwards, batchAliasMap);
 
   const report = buildDryRunReport(
     candidates,
@@ -245,8 +162,113 @@ async function main(): Promise<void> {
   console.log(`Summary written to: ${summaryPath}`);
 }
 
+/**
+ * COMMIT MODE. Not run by this implementation step -- see this file's
+ * header comment and the M6C plan's manual approval gates. Only reachable
+ * from main() after all three preflight guards have already passed.
+ */
+async function runCommitMode(options: CliOptions, client: SupabaseClient): Promise<void> {
+  const ingestionRunId = `ingest-usaspending-${Date.now()}`;
+  const startedAt = new Date().toISOString();
+
+  console.log(
+    `*** COMMIT MODE *** ingestion_run_id=${ingestionRunId}. This run WILL write real rows to the configured Supabase project.`,
+  );
+
+  const { error: insertError } = await client.from("ingestion_runs").insert({
+    id: ingestionRunId,
+    connector_key: "usaspending_award_search",
+    started_at: startedAt,
+    status: "running",
+    records_discovered: 0,
+    records_created: 0,
+    records_skipped: 0,
+  });
+  if (insertError) {
+    throw new Error(`COMMIT MODE ABORTED: failed to create ingestion_runs row: ${insertError.message}`);
+  }
+
+  const existingAliases = await fetchNonDemoUeiAliases(client);
+  const { skippedDueToRequestCap, candidates } = await fetchAndPrepareCandidates(options, existingAliases);
+
+  if (skippedDueToRequestCap.length > 0) {
+    console.log(
+      `PARTIAL RUN: max_requests=${options.maxRequests} was reached before these request kinds could be attempted: ${skippedDueToRequestCap.join(", ")}.`,
+    );
+  }
+
+  const rpcCaller: CommitRpcCaller = async (params) => {
+    const { data, error } = await client.rpc("commit_usaspending_candidate", params);
+    if (error) throw error;
+    return data as CommitRpcResult;
+  };
+
+  const { summary } = await commitCandidateBatch(candidates, ingestionRunId, rpcCaller);
+  // Both an RPC call failure and a serialization failure indicate a real
+  // pipeline/serializer defect (not an expected triage outcome like
+  // AMBIGUOUS/CONFLICT) -- either one marks the run partially_succeeded
+  // rather than succeeded, even though individual candidates around it
+  // still committed fine.
+  const hadFailures =
+    Object.prototype.hasOwnProperty.call(summary.skippedByReason, "rpc_call_failed") ||
+    Object.prototype.hasOwnProperty.call(summary.skippedByReason, "serialization_failed");
+  const completion = buildIngestionRunCompletion(candidates.length, summary, hadFailures);
+
+  const { error: updateError } = await client.from("ingestion_runs").update(completion).eq("id", ingestionRunId);
+  if (updateError) {
+    console.error(`Warning: failed to update ingestion_runs row ${ingestionRunId} with completion status: ${updateError.message}`);
+  }
+
+  console.log(`COMMIT MODE complete. committed=${summary.committedCount} skippedByReason=${JSON.stringify(summary.skippedByReason)}`);
+  console.log(`ingestion_runs.id=${ingestionRunId}`);
+}
+
+async function main(): Promise<void> {
+  const options = parseArgs(process.argv.slice(2));
+
+  if (options.mode === "commit") {
+    // Guard 1: --confirm-reviewer-control must be explicitly present.
+    // Deliberately separate from --commit itself so a bare --commit typo
+    // can never silently proceed. Checked before any fetch or DB call.
+    if (!options.confirmReviewerControl) {
+      throw new Error(
+        "COMMIT MODE ABORTED: --commit requires --confirm-reviewer-control. This is a deliberate, separate opt-in flag.",
+      );
+    }
+
+    // Guard 2: dev/CI project allow-list assertion. Checked before any
+    // fetch or DB call -- reads only an env var, no network/DB access yet.
+    assertDevCiProject(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+    // getServiceSupabaseClient is imported dynamically here (not at this
+    // file's top level) -- see this file's header comment for why a
+    // top-level static import would break dry-run mode.
+    const { getServiceSupabaseClient } = await import("../src/lib/supabase/service-client.ts");
+    const client = getServiceSupabaseClient();
+
+    // Guard 3: reviewer-control preflight (exactly one active reviewer).
+    // This is the one guard that requires a DB read -- still runs before
+    // any USAspending fetch or any commit write. The query itself runs
+    // here (the one place a real SupabaseClient exists); the pass/fail
+    // logic lives in cli-guards.ts's assertExactlyOneActiveReviewer, which
+    // takes the plain { count, error } result rather than a client shape
+    // (see that function's header comment for why).
+    const reviewerCountQuery = await client.from("reviewer_profiles").select("id", { count: "exact", head: true }).eq("is_active", true);
+    assertExactlyOneActiveReviewer(reviewerCountQuery.count, reviewerCountQuery.error);
+
+    console.log(
+      "COMMIT MODE: all preflight guards passed (confirm flag present, dev/CI project verified, exactly one active reviewer).",
+    );
+
+    await runCommitMode(options, client);
+    return;
+  }
+
+  await runDryRunMode(options);
+}
+
 main().catch((err) => {
-  console.error("USAspending connector dry-run failed:", err);
+  console.error("USAspending connector run failed:", err);
   // Node's default error formatting does not reliably surface a custom
   // `cause` property, and USAspending's validation error message (the
   // thing that actually explains a 422) lives there -- print it

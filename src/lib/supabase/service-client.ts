@@ -9,6 +9,10 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  *
  * Used exclusively by:
  * - supabase/seed.ts (the reseed_demo_data RPC caller)
+ * - supabase/connector-usaspending.ts's --commit mode (M6C's
+ *   commit_usaspending_candidate RPC caller and ingestion_runs
+ *   read/write) -- imported dynamically there, only inside the --commit
+ *   branch, never at that file's top level (see its header comment)
  * - controlled tests/integration/ setup code, where unavoidable
  *
  * Never imported by src/app/**, any component, or

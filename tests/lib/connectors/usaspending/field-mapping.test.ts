@@ -162,6 +162,11 @@ describe("buildCandidatePreview", () => {
       "https://www.usaspending.gov/award/CONT_AWD_TEST123/",
     );
     expect(result.sourceDocumentPreview.is_demo).toBe(false);
+    // D-092: source_tier is text ("1"), matching the DB column type and the
+    // commit_usaspending_candidate migration's hardcoded real-record value
+    // -- never the numeric 1 M6B originally (incorrectly) used.
+    expect(result.sourceDocumentPreview.source_tier).toBe("1");
+    expect(typeof result.sourceDocumentPreview.source_tier).toBe("string");
     expect(result.sourceDocumentPreview.event_date).toBe("2026-02-15");
     expect(result.signalPreview.id).toBe("sig-usasp-CONT_AWD_TEST123");
     expect(result.signalPreview.occurred_at).toBe("2026-02-15");

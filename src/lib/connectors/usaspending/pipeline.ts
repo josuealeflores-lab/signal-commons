@@ -1,7 +1,7 @@
 import { extractAwardFields, buildCandidatePreview, isSkippedRecord, type TaggedRawAward } from "./field-mapping.ts";
 import { applyStage1Filter } from "./stage1-filter.ts";
 import { previewEntityDecision, type BatchAliasMap } from "./entity-resolution-preview.ts";
-import type { CandidatePreview, SkippedRecord } from "./types.ts";
+import type { CandidatePreview, EntityAliasRecord, SkippedRecord } from "./types.ts";
 
 /**
  * The Stage-1-filter -> field-mapping -> entity-preview pipeline for a
@@ -10,10 +10,20 @@ import type { CandidatePreview, SkippedRecord } from "./types.ts";
  * so it's importable and unit-testable on its own -- the CLI file has a
  * side-effecting top-level `main()` call and must never be imported by a
  * test.
+ *
+ * `existingAliases` defaults to `[]` (M6B dry-run's original no-DB-
+ * dependency design -- intra-batch matching only). M6C's --commit mode
+ * passes a real, DB-backed, non-demo-filtered `EntityAliasRecord[]` here
+ * (see supabase/connector-usaspending.ts's fetchNonDemoUeiAliases) so
+ * previewEntityDecision can propose MATCH against already-known real
+ * companies, not just against other awards in the same run. This function
+ * itself has no DB dependency either way -- the caller is always
+ * responsible for fetching `existingAliases`.
  */
 export function processTaggedAwards(
   taggedAwards: TaggedRawAward[],
   batchAliasMap: BatchAliasMap,
+  existingAliases: EntityAliasRecord[] = [],
 ): { candidates: CandidatePreview[]; skipped: SkippedRecord[] } {
   const candidates: CandidatePreview[] = [];
   const skipped: SkippedRecord[] = [];
@@ -52,7 +62,7 @@ export function processTaggedAwards(
         recipientParentName: fields.recipientParentName,
         recipientParentUei: fields.recipientParentUei,
       },
-      [],
+      existingAliases,
       batchAliasMap,
     );
     preview.entityPreview = entityPreview;
