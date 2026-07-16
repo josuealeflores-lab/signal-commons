@@ -7,7 +7,10 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ReviewActionForm } from "@/components/review/ReviewActionForm";
 import { DemoRealBadge } from "@/components/review/DemoRealBadge";
+import { CopilotCard } from "@/components/copilot/CopilotCard";
 import { getResearchItemById } from "@/lib/review/queue";
+import { getCopilotAnalyses } from "@/lib/copilot/context";
+import { runCopilotAnalysis } from "@/lib/copilot/actions";
 
 interface ResearchItemPageProps {
   params: Promise<{ id: string }>;
@@ -34,6 +37,7 @@ export default async function ResearchItemPage({ params, searchParams }: Researc
   if (!detail) notFound();
 
   const { item, signal, company, sources, history } = detail;
+  const copilotAnalyses = await getCopilotAnalyses(item.id);
 
   return (
     <section className="flex flex-col gap-6">
@@ -112,6 +116,8 @@ export default async function ResearchItemPage({ params, searchParams }: Researc
           <SourceList signal={signal} sources={sources} />
         </div>
       </Card>
+
+      <CopilotCard analyses={copilotAnalyses} action={runCopilotAnalysis.bind(null, item.id)} />
 
       <ReviewActionForm researchItemId={item.id} status={item.status} signal={signal} />
 
