@@ -7,12 +7,12 @@ import {
   requestMoreEvidence,
 } from "@/lib/review/actions";
 import { EditApproveDiff } from "./EditApproveDiff";
-import type { Signal } from "@/lib/data/schema";
+import type { ReviewSignal } from "@/lib/review/queue";
 
 export interface ReviewActionFormProps {
   researchItemId: string;
   status: string;
-  signal: Signal;
+  signal: ReviewSignal;
 }
 
 /**

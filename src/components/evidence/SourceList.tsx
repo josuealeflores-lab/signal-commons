@@ -1,6 +1,34 @@
-import type { Signal, SourceDocument } from "@/lib/data/schema";
+/**
+ * Deliberately minimal, local prop types (not the full Signal/SourceDocument
+ * from @/lib/data/schema) -- this component is shared between public routes
+ * (which pass the seed-locked public types) and the reviewer detail route
+ * (which passes @/lib/review/queue's ReviewSignal/ReviewSourceDocument,
+ * whose `is_demo` is `boolean` rather than the public types' literal
+ * `true`). SourceList never reads `is_demo`, so it only declares the fields
+ * it actually uses -- both real prop shapes satisfy this structurally,
+ * with no cast needed on either call site.
+ */
+interface SourceListEvidence {
+  source_document_id: string;
+  support_type: string;
+  claim_type: string;
+}
 
-function formatDate(isoDate: string): string {
+interface SourceListSignal {
+  evidence: SourceListEvidence[];
+}
+
+interface SourceListSourceDocument {
+  id: string;
+  canonical_url: string;
+  source_title: string;
+  publisher: string;
+  source_tier: string;
+  published_at: string | null;
+}
+
+function formatDate(isoDate: string | null): string {
+  if (!isoDate) return "an unknown date";
   return new Date(isoDate).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -14,8 +42,8 @@ function formatEnumLabel(value: string): string {
 }
 
 export interface SourceListProps {
-  signal: Signal;
-  sources: SourceDocument[];
+  signal: SourceListSignal;
+  sources: SourceListSourceDocument[];
 }
 
 /**

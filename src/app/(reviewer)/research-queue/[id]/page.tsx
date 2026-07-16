@@ -6,11 +6,12 @@ import { SourceList } from "@/components/evidence/SourceList";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ReviewActionForm } from "@/components/review/ReviewActionForm";
+import { DemoRealBadge } from "@/components/review/DemoRealBadge";
 import { getResearchItemById } from "@/lib/review/queue";
 
 interface ResearchItemPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string }>;
 }
 
 export async function generateMetadata({ params }: ResearchItemPageProps): Promise<Metadata> {
@@ -28,11 +29,11 @@ export async function generateMetadata({ params }: ResearchItemPageProps): Promi
  */
 export default async function ResearchItemPage({ params, searchParams }: ResearchItemPageProps) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, notice } = await searchParams;
   const detail = await getResearchItemById(id);
   if (!detail) notFound();
 
-  const { item, signal, sources, history } = detail;
+  const { item, signal, company, sources, history } = detail;
 
   return (
     <section className="flex flex-col gap-6">
@@ -42,10 +43,29 @@ export default async function ResearchItemPage({ params, searchParams }: Researc
         </p>
       ) : null}
 
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-gray">
-          {item.item_type} &middot; queue status: {item.status}
+      {notice ? (
+        <p role="status" className="rounded-md border border-border-subtle bg-surface px-4 py-3 text-sm text-ink">
+          {notice}
         </p>
+      ) : null}
+
+      {!item.is_demo ? (
+        <p
+          role="note"
+          className="rounded-md border border-amber-600 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
+        >
+          This is a real, USAspending-derived record from the connector — not demo data. It stays private in this
+          reviewer queue and is never publicly visible unless its linked company is separately published.
+        </p>
+      ) : null}
+
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-gray">
+            {item.item_type} &middot; queue status: {item.status}
+          </p>
+          <DemoRealBadge isDemo={item.is_demo} />
+        </div>
         <h1 className="mt-1 text-2xl font-semibold text-ink">{signal.headline}</h1>
       </div>
 
@@ -53,9 +73,27 @@ export default async function ResearchItemPage({ params, searchParams }: Researc
         <EvidenceStrengthBadge strength={signal.evidence_strength} />
         <VerificationStatusBadge status={signal.verification_status} />
         <span className="rounded-full border border-border-subtle px-3 py-1 text-xs text-slate-gray">
-          publication_status: {signal.publication_status}
+          signal publication_status: {signal.publication_status}
         </span>
       </div>
+
+      <Card as="section" aria-labelledby="company-heading">
+        <h2 id="company-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-gray">
+          Linked company
+        </h2>
+        <p className="mt-2 text-sm text-ink">{company.name}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <DemoRealBadge isDemo={company.is_demo} />
+          <span className="rounded-full border border-border-subtle px-3 py-1 text-xs text-slate-gray">
+            company publication_status: {company.publication_status}
+          </span>
+        </div>
+        {company.publication_status !== "published" ? (
+          <p className="mt-2 text-xs text-slate-gray">
+            Approving this item will not make the signal publicly visible — its company has not been published.
+          </p>
+        ) : null}
+      </Card>
 
       <Card as="section" aria-labelledby="summary-heading">
         <h2 id="summary-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-gray">

@@ -1,5 +1,4 @@
 import { getSessionSupabaseClient } from "@/lib/supabase/session-client";
-import type { Signal, SourceDocument } from "@/lib/data/schema";
 
 /**
  * Reviewer-facing reads, using ONLY the session-aware client
@@ -9,7 +8,61 @@ import type { Signal, SourceDocument } from "@/lib/data/schema";
  * allow these queries to see draft/in_review content; there is no
  * additional filtering here beyond what the caller's own session is
  * authorized to see.
+ *
+ * M6D (docs/DECISIONS.md D-094): this file defines its own reviewer
+ * view-model types (ReviewSignal/ReviewSourceDocument/ReviewCompany)
+ * instead of reusing src/lib/data/schema.ts's Signal/SourceDocument types.
+ * Those seed-locked zod schemas type `is_demo` as the literal `true`
+ * (correct for validating seed/demo-data.json, where every record really is
+ * demo data) — reusing them here previously caused mapSignalRow to
+ * hardcode `is_demo: true` on every signal regardless of the row's real
+ * value (the exact bug 20260714230602_m6a_schema_rls_and_publish_invariant.sql's
+ * own comment named as a "later, separate step"). A real, is_demo=false
+ * connector-created signal would have rendered as demo data in this UI.
  */
+
+export interface ReviewSignalEvidence {
+  source_document_id: string;
+  support_type: string;
+  claim_type: string;
+  supporting_passage: string;
+}
+
+export interface ReviewSignal {
+  id: string;
+  company_id: string;
+  signal_type: string;
+  headline: string;
+  summary: string;
+  why_it_matters: string;
+  occurred_at: string | null;
+  detected_at: string;
+  evidence_strength: "low" | "medium" | "high";
+  verification_status: "unverified" | "partially_verified" | "verified" | "disputed" | "rejected";
+  publication_status: "draft" | "in_review" | "published" | "archived";
+  is_demo: boolean;
+  created_by_type: "human" | "ai" | "import";
+  evidence: ReviewSignalEvidence[];
+}
+
+export interface ReviewSourceDocument {
+  id: string;
+  canonical_url: string;
+  source_title: string;
+  publisher: string;
+  source_type: string;
+  source_tier: string;
+  published_at: string | null;
+  retrieved_at: string;
+  is_demo: boolean;
+}
+
+export interface ReviewCompany {
+  id: string;
+  name: string;
+  is_demo: boolean;
+  publication_status: "draft" | "in_review" | "published" | "archived";
+}
 
 export interface ResearchItem {
   id: string;
@@ -18,6 +71,7 @@ export interface ResearchItem {
   status: string;
   priority: string;
   assigned_to: string | null;
+  is_demo: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -35,16 +89,18 @@ export interface ReviewActionRecord {
 
 export interface ResearchItemDetail {
   item: ResearchItem;
-  signal: Signal;
-  sources: SourceDocument[];
+  signal: ReviewSignal;
+  company: ReviewCompany;
+  sources: ReviewSourceDocument[];
   history: ReviewActionRecord[];
 }
 
-const RESEARCH_ITEM_COLUMNS = "id, item_type, payload, status, priority, assigned_to, created_at, updated_at";
+const RESEARCH_ITEM_COLUMNS = "id, item_type, payload, status, priority, assigned_to, is_demo, created_at, updated_at";
 const SIGNAL_COLUMNS =
   "id, company_id, signal_type, headline, summary, why_it_matters, occurred_at, detected_at, evidence_strength, verification_status, publication_status, is_demo, created_by_type, signal_evidence(source_document_id, support_type, claim_type, supporting_passage)";
 const SOURCE_DOCUMENT_COLUMNS =
   "id, canonical_url, source_title, publisher, source_type, source_tier, published_at, retrieved_at, is_demo";
+const COMPANY_COLUMNS = "id, name, is_demo, publication_status";
 const REVIEW_ACTION_COLUMNS = "id, research_item_id, reviewer_id, action, before_state, after_state, reviewer_note, created_at";
 
 interface SignalRow {
@@ -54,17 +110,18 @@ interface SignalRow {
   headline: string;
   summary: string;
   why_it_matters: string;
-  occurred_at: string;
+  occurred_at: string | null;
   detected_at: string;
-  evidence_strength: Signal["evidence_strength"];
-  verification_status: Signal["verification_status"];
-  publication_status: Signal["publication_status"];
-  is_demo: true;
-  created_by_type: Signal["created_by_type"];
-  signal_evidence: Signal["evidence"];
+  evidence_strength: ReviewSignal["evidence_strength"];
+  verification_status: ReviewSignal["verification_status"];
+  publication_status: ReviewSignal["publication_status"];
+  is_demo: boolean;
+  created_by_type: ReviewSignal["created_by_type"];
+  signal_evidence: ReviewSignalEvidence[];
 }
 
-function mapSignalRow(row: SignalRow): Signal {
+/** Pure, exported for hermetic testing — no DB call, just the row-shape mapping. */
+export function mapSignalRow(row: SignalRow): ReviewSignal {
   return {
     id: row.id,
     company_id: row.company_id,
@@ -77,10 +134,22 @@ function mapSignalRow(row: SignalRow): Signal {
     evidence_strength: row.evidence_strength,
     verification_status: row.verification_status,
     publication_status: row.publication_status,
-    is_demo: true,
+    is_demo: row.is_demo,
     created_by_type: row.created_by_type,
     evidence: row.signal_evidence,
   };
+}
+
+/**
+ * Pure, exported for hermetic testing. The current reviewer detail view
+ * only knows how to render a `new_signal` item pointing at a `signals` row
+ * (Milestone 4/6D scope, matching submit_review_action's own item_type
+ * gate) -- this guards against blindly treating `payload.target_id` as a
+ * signal id for any other item_type/target_table shape, which would
+ * previously either mismatch a query or silently resolve an unrelated row.
+ */
+export function isSupportedResearchItem(item: Pick<ResearchItem, "item_type" | "payload">): boolean {
+  return item.item_type === "new_signal" && item.payload?.target_table === "signals";
 }
 
 /** Every pending/needs_more_evidence/approved/rejected/disputed item a reviewer can see. */
@@ -96,9 +165,12 @@ export async function getResearchQueue(): Promise<ResearchItem[]> {
 
 /**
  * The evidence-packet view for one research item: the item itself, its
- * target signal's full fields, linked source documents, and its full
- * review_actions history (oldest problems first would hide the most
- * relevant recent entry, so newest-first).
+ * target signal's full fields, the signal's linked company, linked source
+ * documents, and its full review_actions history (newest first).
+ *
+ * Returns undefined (leading to a 404, same as a genuinely missing id) both
+ * when the item doesn't exist and when its item_type/payload shape isn't
+ * one this detail view supports yet -- see isSupportedResearchItem.
  */
 export async function getResearchItemById(id: string): Promise<ResearchItemDetail | undefined> {
   const supabase = await getSessionSupabaseClient();
@@ -112,6 +184,8 @@ export async function getResearchItemById(id: string): Promise<ResearchItemDetai
   if (!itemData) return undefined;
   const item = itemData as unknown as ResearchItem;
 
+  if (!isSupportedResearchItem(item)) return undefined;
+
   const { data: signalData, error: signalError } = await supabase
     .from("signals")
     .select(SIGNAL_COLUMNS)
@@ -121,15 +195,24 @@ export async function getResearchItemById(id: string): Promise<ResearchItemDetai
   if (!signalData) return undefined;
   const signal = mapSignalRow(signalData as unknown as SignalRow);
 
+  const { data: companyData, error: companyError } = await supabase
+    .from("companies")
+    .select(COMPANY_COLUMNS)
+    .eq("id", signal.company_id)
+    .maybeSingle();
+  if (companyError) throw companyError;
+  if (!companyData) return undefined;
+  const company = companyData as unknown as ReviewCompany;
+
   const sourceIds = signal.evidence.map((evidence) => evidence.source_document_id);
-  let sources: SourceDocument[] = [];
+  let sources: ReviewSourceDocument[] = [];
   if (sourceIds.length > 0) {
     const { data: sourceRows, error: sourcesError } = await supabase
       .from("source_documents")
       .select(SOURCE_DOCUMENT_COLUMNS)
       .in("id", sourceIds);
     if (sourcesError) throw sourcesError;
-    sources = (sourceRows ?? []) as unknown as SourceDocument[];
+    sources = (sourceRows ?? []) as unknown as ReviewSourceDocument[];
   }
 
   const { data: historyData, error: historyError } = await supabase
@@ -142,6 +225,7 @@ export async function getResearchItemById(id: string): Promise<ResearchItemDetai
   return {
     item,
     signal,
+    company,
     sources,
     history: (historyData ?? []) as unknown as ReviewActionRecord[],
   };

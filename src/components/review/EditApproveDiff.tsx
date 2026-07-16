@@ -1,7 +1,7 @@
-import type { Signal } from "@/lib/data/schema";
+import type { ReviewSignal } from "@/lib/review/queue";
 
 export interface EditApproveDiffProps {
-  signal: Signal;
+  signal: ReviewSignal;
 }
 
 /**
