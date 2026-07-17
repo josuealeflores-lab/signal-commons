@@ -2,9 +2,16 @@ import { getSessionSupabaseClient } from "@/lib/supabase/session-client";
 import { getCopilotPromptContext } from "./context";
 import { buildAnalysisPrompt, PROMPT_VERSION } from "./prompt";
 import { copilotAnalysisOutputSchema } from "./schema";
-import { callModel, resolveModelName, ModelProviderError, ModelResponseParseError, ModelTimeoutError } from "./client";
+import {
+  callModel,
+  resolveModelName,
+  ModelNotConfiguredError,
+  ModelProviderError,
+  ModelResponseParseError,
+  ModelTimeoutError,
+} from "./client";
 
-export { ModelProviderError, ModelResponseParseError, ModelTimeoutError };
+export { ModelNotConfiguredError, ModelProviderError, ModelResponseParseError, ModelTimeoutError };
 
 export class UnsupportedResearchItemError extends Error {
   constructor(researchItemId: string) {

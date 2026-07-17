@@ -1,6 +1,6 @@
 # Roadmap: M6 USAspending Connector → M7 LLM Reviewer Copilot → M8 Agent-Style Workflow → M9 Final Demo
 
-**Status:** Cowork/Fable reviewed this roadmap and returned **PASS WITH NOTES** (see `docs/DECISIONS.md` D-089). **M6 is the next build milestone.** M7, M8, and M9 remain planning-only until M6 is complete and separately approved for implementation. This document is docs-only planning; it authorizes no code, migration, API call, database write, or environment change on its own.
+**Status:** Cowork/Fable reviewed this roadmap and returned **PASS WITH NOTES** (see `docs/DECISIONS.md` D-089). **M6A–M6D, M7, and M8A are complete and merged; M9 (this document's final milestone) is in progress** (see `docs/DECISIONS.md` D-090 through D-097). This document is docs-only planning; it authorizes no code, migration, API call, database write, or environment change on its own — each milestone below still required its own separate implementation approval.
 
 The platform goal is a working Signal Commons system: a public demo-safe dashboard, a private reviewer queue, real USAspending connector candidates entering that queue, an authenticated LLM Reviewer Copilot inside the reviewer workflow, and a supervised agent-style workflow/digest — not just connector validation artifacts.
 

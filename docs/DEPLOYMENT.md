@@ -87,6 +87,19 @@ Production has zero real, loginable reviewer accounts after Milestone 5 — only
 
 This runbook is documentation only — no real reviewer account was created as part of Milestone 5 or by this update.
 
+## Production AI activation runbook (documented only — not executed, requires separate approval)
+
+M7's Reviewer Copilot and M8A's queue digest are implemented, tested, and merged, but intentionally **not activated in production**: `ANTHROPIC_API_KEY` is unprovisioned and there are 0 active production reviewers. **This section documents what activating them would involve — it does not execute any of these steps, and none of them is authorized by this document alone.** Each remains a separate, later, explicitly-gated decision (`docs/DECISIONS.md` D-095/D-096/D-097).
+
+If and when that separate approval is given, in this order:
+
+1. **Re-verify the current Anthropic model/API/tool-use request-response shape against official live documentation** before the first live call is ever made — the exact shape (model id, Messages API request/response format, tool-use `tool_use`/`tool_result` blocks) may have drifted since M7/M8A's implementation time, and neither `src/lib/copilot/client.ts` nor `src/lib/digest/client.ts` has ever been exercised against the real provider by any test in this repo.
+2. **Provision `ANTHROPIC_API_KEY` as a server-only secret** in Vercel Production only after that verification — never `NEXT_PUBLIC_`-prefixed, never in a client bundle, following the same environment-separation discipline this document already applies to `SUPABASE_SERVICE_ROLE_KEY`.
+3. **Make the production reviewer-account decision separately** — provisioning the provider key does not by itself require or imply activating a real reviewer account; follow the existing "Reviewer provisioning runbook" above only once that decision is made on its own terms.
+4. **Preserve migration-before-reviewer-activation sequencing** — production's schema is already aligned through M7 (the `copilot_analyses` table and `record_copilot_analysis` RPC are already applied), so no migration step is needed here; the sequencing requirement is only that any future schema change must land before any reviewer activation that depends on it, not the other way around, matching the discipline already used for M6A–M8A.
+
+Do not activate production AI as part of M9 — M9's own scope (`docs/DECISIONS.md` D-097) is documentation and polish only.
+
 ## Known, accepted, non-blocking follow-ups
 
 - **`middleware.ts` → `proxy.ts` rename** — deferred; see `docs/DECISIONS.md` D-080. Next.js 16.2.10's deprecation warning for the legacy filename is cosmetic and non-blocking.

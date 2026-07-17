@@ -12,6 +12,7 @@ import { listQueueItemsArgsSchema, getItemContextArgsSchema, digestOutputSchema,
 import { buildDigestSystemPrompt, buildInitialUserPrompt, renderQueueItemsToolResult, renderItemContextToolResult } from "./prompt";
 import {
   callDigestModel,
+  ModelNotConfiguredError,
   ModelProviderError,
   ModelResponseParseError,
   ModelTimeoutError,
@@ -19,7 +20,7 @@ import {
   type DigestContentBlock,
 } from "./client";
 
-export { ModelProviderError, ModelResponseParseError, ModelTimeoutError };
+export { ModelNotConfiguredError, ModelProviderError, ModelResponseParseError, ModelTimeoutError };
 
 /**
  * Bounded tool-use loop for the M8A queue digest (docs/DECISIONS.md D-096

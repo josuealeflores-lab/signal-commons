@@ -1,12 +1,7 @@
 "use server";
 
-import {
-  runDigestAndSummarize,
-  DigestLoopBoundsExceededError,
-  ModelProviderError,
-  ModelResponseParseError,
-  ModelTimeoutError,
-} from "./run-digest";
+import { runDigestAndSummarize } from "./run-digest";
+import { errorMessageFor } from "./error-messages";
 import type { DigestOutput } from "./schema";
 
 /**
@@ -18,19 +13,15 @@ import type { DigestOutput } from "./schema";
  * the digest is returned directly to the caller for in-memory display via
  * useActionState, and is never persisted, so there is nothing to
  * revalidate or redirect to.
+ *
+ * The error-message mapping itself lives in error-messages.ts, not here —
+ * a "use server" file may only export async functions, and errorMessageFor
+ * is a plain synchronous function (docs/DECISIONS.md D-097).
  */
 
 export interface DigestActionState {
   digest: DigestOutput | null;
   error: string | null;
-}
-
-function errorMessageFor(err: unknown): string {
-  if (err instanceof ModelTimeoutError) return "Queue digest timed out. Try again.";
-  if (err instanceof DigestLoopBoundsExceededError) return "Queue digest could not finish within its bounds. Try again.";
-  if (err instanceof ModelProviderError) return "Queue digest failed (provider error). Try again.";
-  if (err instanceof ModelResponseParseError) return "Queue digest returned an unexpected response. Try again.";
-  return "Queue digest failed. Try again.";
 }
 
 export async function generateQueueDigest(_prevState: DigestActionState): Promise<DigestActionState> {

@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { callDigestModel, ModelProviderError, ModelResponseParseError, ModelTimeoutError, DEFAULT_MAX_TOKENS } from "@/lib/digest/client";
+import {
+  callDigestModel,
+  ModelNotConfiguredError,
+  ModelProviderError,
+  ModelResponseParseError,
+  ModelTimeoutError,
+  DEFAULT_MAX_TOKENS,
+} from "@/lib/digest/client";
 import { DIGEST_TOOL_DEFINITIONS } from "@/lib/digest/tools";
 
 /**
@@ -78,12 +85,12 @@ describe("callDigestModel", () => {
     await expect(callDigestModel({ ...BASE_PARAMS, options: { apiKey: "test-key", fetchImpl } })).rejects.toBeInstanceOf(ModelProviderError);
   });
 
-  it("throws ModelProviderError when no API key is available", async () => {
+  it("throws ModelNotConfiguredError (not ModelProviderError) when no API key is available (docs/DECISIONS.md D-097)", async () => {
     const originalKey = process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     try {
       const fetchImpl = vi.fn() as unknown as typeof fetch;
-      await expect(callDigestModel({ ...BASE_PARAMS, options: { fetchImpl } })).rejects.toBeInstanceOf(ModelProviderError);
+      await expect(callDigestModel({ ...BASE_PARAMS, options: { fetchImpl } })).rejects.toBeInstanceOf(ModelNotConfiguredError);
       expect(fetchImpl).not.toHaveBeenCalled();
     } finally {
       if (originalKey !== undefined) process.env.ANTHROPIC_API_KEY = originalKey;

@@ -51,6 +51,11 @@ npm run build       # production build
 
 Copy `.env.example` to `.env.local` and fill in values once Supabase/Claude credentials are introduced (not required for Milestone 0).
 
+## Feature status: implemented vs. intentionally gated
+
+- **Implemented and merged:** the public dashboard/sectors/companies/signals/methodology pages; real USAspending connector candidates entering a private reviewer queue (M6A–M6D); an advisory-only per-item Copilot analysis (M7); a bounded, read-only, agent-style queue digest (M8A).
+- **Intentionally gated in production, not a bug:** the Copilot and queue-digest AI features require a provider key and an active reviewer account to run. Production deliberately has neither yet — `ANTHROPIC_API_KEY` is unprovisioned and there are 0 active production reviewers — both are separate, later, explicitly-gated decisions (see `docs/DEPLOYMENT.md`'s production AI-activation runbook). Everything else above already works end-to-end today, including in production.
+
 ## Demo script (production)
 
 A live demo from a clean browser session, in order:
@@ -63,5 +68,6 @@ A live demo from a clean browser session, in order:
 
 - **On dev/CI**, sign in at `/auth/login` with one of the five fixture reviewer accounts (`docs/DECISIONS.md` D-066), open `/research-queue`, and walk a pending item through approve → dispute — the signal appears on `/signals` immediately after approval and disappears immediately after dispute.
 - **On production**, the reviewer flow can only be demonstrated after manually provisioning one real reviewer account, following the runbook in `docs/DEPLOYMENT.md` — production ships with zero usable reviewer logins by design (only an inactive system identity used for seeded audit-anchor attribution, `docs/DECISIONS.md` D-076).
+- **AI-assisted review (Copilot + queue digest)** — implemented and reviewer-demoable on dev/CI only, using the same fixture reviewer login above: open a pending item and click "Run Copilot analysis," or open the reviewer dashboard and click "Generate queue digest." Both require a dev/CI-scoped `ANTHROPIC_API_KEY` to actually call a model — if one isn't set, both surface an honest "AI features are not configured in this environment" message rather than a raw error. **Production has no `ANTHROPIC_API_KEY` provisioned and 0 active reviewers, so neither AI feature is reachable in production today** — both are intentionally gated pending two separate, deliberate decisions, not bugs (see `docs/DEPLOYMENT.md`'s production AI-activation runbook).
 
 See `docs/DEPLOYMENT.md` for the full environment map, production setup order, and Vercel cutover/rollback steps.

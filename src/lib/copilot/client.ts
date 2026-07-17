@@ -52,6 +52,14 @@ export function resolveModelName(explicitModel?: string): string {
   return explicitModel ?? process.env.COPILOT_MODEL_NAME ?? DEFAULT_MODEL_NAME;
 }
 
+/** Distinct from ModelProviderError (docs/DECISIONS.md D-097): a missing key is a configuration state, not a transient provider/network failure -- the two must stay distinguishable so a reviewer never sees a misleading "try again" for something retrying can never fix. */
+export class ModelNotConfiguredError extends Error {
+  constructor() {
+    super("ANTHROPIC_API_KEY is not configured in this environment");
+    this.name = "ModelNotConfiguredError";
+  }
+}
+
 export class ModelTimeoutError extends Error {
   constructor() {
     super("Copilot model call timed out");
@@ -110,7 +118,7 @@ function extractFirstTextBlock(json: unknown): string | null {
 export async function callModel(prompt: CopilotPrompt, options: ModelCallOptions = {}): Promise<string> {
   const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new ModelProviderError("Missing ANTHROPIC_API_KEY");
+    throw new ModelNotConfiguredError();
   }
 
   const fetchImpl = options.fetchImpl ?? fetch;
