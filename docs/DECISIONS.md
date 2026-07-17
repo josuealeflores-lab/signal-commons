@@ -837,3 +837,81 @@ Both tools, without exception: use the session client only (`getSessionSupabaseC
 **Implementation sequence:** this D-097 entry first; implementation of the nine scope items above, with the required hermetic + e2e test coverage alongside; local gates (`lint`/`typecheck`/`test`/`build`); **no migration-draft gate** (none is needed); **no `test:db` step** by default (see "Required test coverage"); the required Cowork/Fable implementation review above, before merge; merge to `main` via feature branch + PR; a final, **read-only** M9 demo-readiness check as the last step, mirroring the M6/M7 production-readiness-check pattern already used twice this project — confirming production's standing state is unchanged (0 active reviewers, no provider key, schema aligned through M7) and that the dev/CI demo runbook actually works end-to-end, without making any production write, migration, or activation.
 
 **Consequence:** This is **docs-only planning work.** No code, migration, dependency, API call, database write, Supabase change, Vercel change, or env-file change is authorized by this decision. The M9 plan may proceed to its next step (implementing the scope items above) only once that step is separately, explicitly approved — not implied by this entry.
+
+### D-098 — Post-M9 Public Usability and Production-Readiness Roadmap
+
+**Choice:** Fable/Cowork completed a whole-system review after M9 merged and returned an assessment that this entry records verbatim in substance, alongside adopting the post-M9 roadmap (M10–M16) that follows from it. This entry is the canonical successor to `docs/ROADMAP_M6_M9.md` — that document's own scope ends at M9; everything from here forward is planned under this entry and the milestones it defines.
+
+**Post-M9 state snapshot (as of this entry):** M6A–M6D complete and merged; M7 Reviewer Copilot complete and merged; M8A Queue Digest complete and merged; M9 final demo/polish complete and merged. The public demo is deployed. Production schema is aligned through M7; M8A and M9 introduced no schema/RLS/RPC changes. Production active reviewer count remains 0. `ANTHROPIC_API_KEY` has not been provisioned. No production reviewer has been created or activated. No live Anthropic or other provider call has ever occurred. No live production connector write has ever occurred. The public site currently shows fictional demo data only. Both AI features are implemented but intentionally not production-usable yet.
+
+**Fable's overall assessment:** Signal Commons has a **strong foundation** that is **correctly gated** — the safety and integrity architecture is, in Fable's words, **ahead of the product**: more of the system is built to prevent a bad outcome than is built to produce a good one yet. The platform is **still not publicly useful with real data** — every public record remains fictional demo content, and no real connector-sourced item has ever been committed or published. The next phase is explicitly **not "more features" for their own sake** — it is **converting a well-gated demo into a small, real, trustworthy public dataset, one gate at a time**, in the deliberate order this entry lays out below.
+
+**What Fable identified as strong, to be preserved and not weakened by any future milestone:**
+- The publish gate and RPC-first enforcement pattern (`submit_review_action`, `record_copilot_analysis`, `commit_usaspending_candidate` — every mutation with real consequence goes through a single, reviewer-gated, `SECURITY DEFINER` RPC, never ad hoc client-side writes).
+- The RLS posture across every table (default-deny, explicit reviewer-only or public-published-only policies, no anon write policy anywhere).
+- The three-client separation (anon/publishable session client for public reads, session client for reviewer reads/writes, service-role client confined to local/CI scripts and never present in the Vercel runtime).
+- Service-role isolation from the deployed app — confirmed structurally, not just by convention.
+- The no-leakage structural tests (`tests/lib/no-connector-leakage.test.ts`) proving connector and service-role code never reaches `src/app`, `src/components`, `src/lib/data`, `src/lib/review`, `src/lib/copilot`, or `src/lib/digest`.
+- Decision-log discipline — every milestone's design, required/recommended refinements, and consequences recorded in `docs/DECISIONS.md` before implementation, not after.
+- Prompt-injection and AI-output discipline — the nonce-boundary untrusted-content pattern (M7), extended to a bounded, read-only, multi-turn tool-use loop (M8A) that still cannot mutate anything, and a strict output schema layered under both.
+- Honest public UX — the demo-data banner, the methodology page's disclosure language, and the M9 additions (honest not-configured AI messaging, corrected sector counts, the AI-assisted-review section's live-AI-not-enabled disclosure) all reflect actual system state rather than aspirational copy.
+- Environment separation (local/CI/Preview/Production, each with its own credentials, `.env.production.local` never auto-loaded, service-role key never given to Vercel).
+- The conservative entity-resolution posture (UEI-exact-only automatic matching, `possible_individual` routing before any draft-company creation, no automatic entity merge beyond strict UEI reuse).
+
+**What Fable identified as remaining demo-only, not yet proven in real conditions:**
+- All public content is fictional — no real company, signal, or source has ever been shown publicly.
+- The connector's live `--commit` CLI path has been smoke-tested but has never committed a real candidate into the reviewer queue.
+- Stage-1 recall (the deterministic USAspending filter's ability to actually find relevant candidates at scale) remains unproven — M6's own acceptance criteria explicitly excluded this.
+- Entity-resolution edge cases beyond the tested fixtures (parent/subsidiary chains, near-duplicate names, ambiguous UEIs) remain unvalidated against real data volume.
+- The `entity_match`/`new_company`/correction reviewer paths are view-only today — no review-action support exists for them yet (M6's own documented scope limit).
+- Neither AI feature has ever been run against a live provider — every test in this repo injects its own mock; the actual Anthropic API shape has never been exercised.
+- Reviewer operations (login, approve/reject/dispute, Copilot, digest) have never been exercised in production — only on dev/CI, with fixture accounts.
+- Known operational hardening gaps remain accepted-but-open: no rate limiting or idempotency keys on mutation endpoints (carried forward since M4), no production error monitoring/alerting, no key-rotation runbook, leaked-password protection not yet confirmed enabled in production.
+- Vercel Preview still points at the shared dev/CI Supabase project (an accepted M5-era decision, not yet revisited).
+
+**Adopted next roadmap (M10–M16), replacing `docs/ROADMAP_M6_M9.md` as the canonical forward plan:**
+
+- **M10 — Public Usability & Trust Foundation.** Scope: a feedback/corrections channel; a public FAQ/About page; "what is a signal?" plain-language explainers; badge-to-methodology links (evidence-strength and verification-status badges linking to their definitions); `robots.txt`/sitemap/Open Graph metadata; human-written sector context (beyond the current auto-generated framing); a search plan (Postgres full-text search is the likely mechanism, not yet decided); a signal-slug strategy decision, required before any real record is ever published (today's slugs are demo-fixture-derived); an optional RSS/feed. Exit gate: quality gate (`lint`/`typecheck`/`test`/`build`) green; an accessibility check performed; the corrections channel live.
+- **M11 — Reviewer & Operational Hardening → Production Reviewer Activation.** Scope: rate limiting and idempotency keys on mutation endpoints (promoted from accepted gap to blocking, see below); confirm/enable leaked-password protection in production; a login-abuse posture decision; an advisor-follow-up hardening migration if the Supabase security advisors surface anything at that time; error monitoring/alerting; a key-rotation runbook; **only then**, provision the first real production reviewer. Exit gate: one real reviewer active in production; every M4-era accepted gap this milestone targets is closed, not merely documented.
+- **M12 — Production AI Activation.** Scope: re-verify the current Anthropic model/API/tool-use request-response shape against official live documentation (mandatory first step, per D-095/D-096/D-097's own standing caution — never assumed from implementation-time memory); a dev/CI provider-key smoke test first; per-reviewer and global run caps; provider spend limits; a digest-run logging decision (promoted from open question to a required decision before activation); the production key is provisioned **only after** caps and the smoke test both pass. Exit gate: one verified live Copilot run and one verified live digest run, performed by the real reviewer from M11, within the established caps, and logged.
+- **M13 — Real Connector Operations, queue-only.** Scope: the first real operational commit run; the D-093 5-row SQL inspection step repeated at real-operation scale; NAICS/PSC reconciliation (the known null-mapping limitation from D-091); the `entity_match` reviewer path (still view-only as of D-098); ingestion observability; a circuit-breaker/queue-cap decision; a retention decision for `ingestion_runs`/connector artifacts; a recurring-run cadence — manual before any scheduled run is even considered. Exit gate: real drafts flow into the private queue; a reviewer can triage them; shed/skip reasons are visible; **still zero public exposure** of any real record.
+- **M14 — Real Record Publishing Pipeline.** Scope: a company-publish mechanism (does not exist today — every company-level publication decision this project has made has been demo-data-only); an R1 re-confirmation mechanism (re-checking the "signal cannot publish while company is draft" invariant under real data); a real/demo provenance UI; a banner and methodology-copy redesign to accommodate mixed real/demo content honestly (the current "everything is fictional" framing becomes false the moment one real record publishes); real evidence display; data-quality bars; closure of the person-name and parent/subsidiary validation gaps flagged in M13; a privacy policy and a takedown/corrections process (promoted from open question to required-before-launch, see below). Exit gate: the first real record is publicly visible, fully labeled as real, and correctable through the now-live corrections channel.
+- **M15 — Supervised Agent Layer.** Scope: M8B's persisted-digest design (deferred since M8A); scheduled digest generation, only after M12's caps and logging exist; pre-filled review-action drafts (an assistant that prepares a suggested action for a human to confirm, never auto-submits one); an entity-match assistant. Structurally unchanged from M7/M8A's own invariants: **no write tools, no auto-approval, no auto-publication** — this milestone extends the advisory pattern, it does not relax it. Exit gate: the structural no-write-tool tests (mirroring `tests/lib/digest/tools.test.ts`'s registry-enumeration pattern) are still green; every agent run is audited.
+- **M16 — Public Launch Readiness.** Scope: a security re-review; a dependency scan; a load sanity check; monitoring verified end-to-end; an accessibility audit; a full content review; launch FAQ/comms. Exit gate: a go/no-go decision recorded in `docs/DECISIONS.md`, not merely a checklist completed silently.
+
+**Accepted gaps promoted to blocking gates (must close before the milestone that depends on them, not merely tracked as known-accepted):**
+- Rate limiting — blocking for M11.
+- Idempotency keys on mutation endpoints — blocking for M11.
+- AI run caps (per-reviewer and global) — blocking for M12.
+- Provider cost/spend caps — blocking for M12.
+- Production observability — blocking for M11 (reviewer activation) and reconfirmed for M12 (AI activation).
+- Leaked-password protection — blocking for M11 (this was already flagged as a prerequisite once real reviewer accounts exist, per D-085 and `docs/DEPLOYMENT.md`'s reviewer-provisioning runbook — M11 is where it actually becomes blocking rather than merely recommended).
+- A digest-run logging decision — blocking for M12, before production AI activation.
+- A corrections/takedown process — blocking for M14, before any real public record.
+- A real/demo banner and provenance-UI redesign — blocking for M14, before any real public record (the current single-state "everything here is fictional" banner cannot honestly describe a mixed real/demo public dataset).
+
+**Consolidated activation-ordering rule (the sequence every later milestone must respect, restated as one list so no future plan can silently reorder it):**
+1. Public usability/trust foundation (M10).
+2. Reviewer and operational hardening (M11, first half).
+3. Real production reviewer activation (M11, exit gate).
+4. Live-documentation provider verification (M12, first step, before any key work).
+5. Dev/CI provider-key smoke test (M12).
+6. Rate/cost caps (M12, before the production key).
+7. Production provider key (M12, only after 4–6).
+8. Real connector operations, private queue only (M13 — no public exposure yet).
+9. Company-publish and real-record publishing mechanism (M14, built before use).
+10. Real public data (M14 exit gate — the first real record goes live).
+11. Supervised agents beyond the current read-only advisory pattern (M15 — after real data exists, not before).
+12. Public launch readiness (M16 — last, not first).
+
+**Non-scope — explicitly not authorized by this entry:**
+No code implementation of any kind; no migration; no schema/RLS/RPC change; no Supabase command; no database write; no live provider or API call; no Anthropic call; no provider-key provisioning; no production reviewer creation or activation; no live USAspending connector write; no publishing of real public data; no company-publish mechanism; no agent capability beyond what M7/M8A already ship; no scheduled or background job of any kind; no Vercel or environment-variable change. This entry adopts a roadmap; it does not begin executing any part of it.
+
+**Immediate next steps after this entry (each still separately gated, not authorized by D-098 itself):**
+1. Draft the M10 plan.
+2. Send the M10 plan to Cowork/Fable for a light public-surface review (lighter than a full milestone review, since M10 touches no reviewer/AI/connector safety surface).
+3. Decide the corrections-channel mechanism — email vs. a structured form — before M10 implementation begins.
+4. Decide the signal-slug strategy before any real publishing work in M14.
+5. Create a single, consolidated pre-launch gap list, gathering every deferred item named across this entry in one place rather than scattered across milestone entries: rate limiting; idempotency; digest-run logging; any INFO/WARN-level Supabase advisor items outstanding at the time; the leaked-password protection toggle; NAICS/PSC reconciliation; the `entity_match` reviewer path; the ingestion circuit breaker; the retention decision; production observability; the key-rotation runbook; and the privacy/corrections/takedown process.
+
+**Consequence:** This is **docs-only planning work.** No code, migration, dependency, API call, database write, Supabase change, Vercel change, or env-file change is authorized by this decision. This entry adopts the M10–M16 roadmap as the project's canonical forward plan; it does not authorize starting M10 or any other milestone above — each remains its own separately-gated planning step, following the exact same plan → Cowork/Fable review → decision-log entry → implementation → test/build → review → merge sequence every milestone since M6A has used.
