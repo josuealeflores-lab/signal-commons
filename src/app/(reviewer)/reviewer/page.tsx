@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { DigestPanel } from "@/components/digest/DigestPanel";
 import { getQueueCounts, getRecentReviewActions } from "@/lib/review/queue";
+import { generateQueueDigest } from "@/lib/digest/actions";
 
 export const metadata: Metadata = {
   title: "Reviewer dashboard — Signal Commons",
@@ -43,6 +45,8 @@ export default async function ReviewerDashboardPage() {
         <CountCard label="Rejected" value={counts.rejected} />
         <CountCard label="Disputed" value={counts.disputed} />
       </div>
+
+      <DigestPanel action={generateQueueDigest} />
 
       <Card as="section" aria-labelledby="recent-actions-heading">
         <h2 id="recent-actions-heading" className="text-lg font-semibold text-ink">
