@@ -10,21 +10,24 @@ import { describe, expect, it } from "vitest";
  * data-access layer), src/lib/review (the reviewer-facing data/action
  * layer, added in M6D -- docs/DECISIONS.md D-094 -- since the reviewer
  * queue now does its own company/signal reads and must stay on the session
- * client, never service-role), and src/lib/copilot (the M7 Reviewer
+ * client, never service-role), src/lib/copilot (the M7 Reviewer
  * Copilot module, docs/DECISIONS.md D-095 -- its narrow reads and RPC call
  * must likewise stay on the session client, never service-role, and it
- * must never import the connector/commit path) -- the places
+ * must never import the connector/commit path), and src/lib/digest (the
+ * M8A queue-digest module, docs/DECISIONS.md D-096 -- its read-only tools
+ * must likewise stay on the session client, never service-role, and must
+ * never import the connector/commit path) -- the places
  * connector/service-role code must never leak into. Isolation is enforced
  * by (a) these modules never being referenced from any of the five, and
  * (b) this grep-based check, not by any runtime guard (the connector
  * modules are deliberately not `server-only`-guarded so they stay
  * hermetically testable under plain `npm test` -- see http-client.ts's
- * header comment; src/lib/copilot/client.ts follows the same rationale,
- * see its own header comment).
+ * header comment; src/lib/copilot/client.ts and src/lib/digest/client.ts
+ * follow the same rationale, see their own header comments).
  */
 
 const SRC_ROOT = path.resolve(__dirname, "..", "..", "src");
-const SCANNED_DIRS = ["app", "components", "lib/data", "lib/review", "lib/copilot"];
+const SCANNED_DIRS = ["app", "components", "lib/data", "lib/review", "lib/copilot", "lib/digest"];
 // lib\/connectors\/ already covers commit.ts/commit-serializer.ts/cli-guards.ts
 // (M6C) since they live under src/lib/connectors/usaspending/. connector-usaspending
 // is an additional, explicit pattern for the CLI script itself
