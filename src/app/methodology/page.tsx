@@ -7,10 +7,18 @@ import {
   VERIFICATION_STATUS_DEFINITIONS,
   VERIFIED_DISCLAIMER,
 } from "@/lib/content/labels";
+import { CORRECTIONS_EMAIL } from "@/lib/content/site";
+
+const TITLE = "Methodology — Signal Commons";
+const DESCRIPTION = "How Signal Commons evaluates evidence, verifies claims, and reviews content.";
 
 export const metadata: Metadata = {
-  title: "Methodology — Signal Commons",
-  description: "How Signal Commons evaluates evidence, verifies claims, and reviews content.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 const SOURCE_TIERS = [
@@ -180,6 +188,16 @@ export default function MethodologyPage() {
             the specific field or claim being corrected, includes a reviewer note, and updates
             the public wording promptly — disputed history is not silently removed when it
             remains material to understanding a claim.
+          </p>
+          <p className="mt-3 text-sm text-ink">
+            Report incorrect, outdated, or unclear information by emailing{" "}
+            <a
+              href={`mailto:${CORRECTIONS_EMAIL}`}
+              className="font-semibold text-deep-teal underline underline-offset-2"
+            >
+              {CORRECTIONS_EMAIL}
+            </a>
+            . Corrections are reviewed manually before the public wording changes.
           </p>
         </Card>
       </div>

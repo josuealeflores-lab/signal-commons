@@ -91,4 +91,16 @@ describe("SectorDetailPage company count", () => {
 
     expect(screen.queryByText(/companies in this sector/i)).not.toBeInTheDocument();
   });
+
+  it("renders the sector's static, human-written context copy (docs/DECISIONS.md D-099)", async () => {
+    vi.mocked(getSectorDetailView).mockResolvedValue(VIEW);
+
+    const jsx = await SectorDetailPage({
+      params: Promise.resolve({ slug: "agriculture" }),
+      searchParams: Promise.resolve({}),
+    });
+    render(jsx);
+
+    expect(screen.getByText(/agriculture covers the technology used to grow/i)).toBeInTheDocument();
+  });
 });

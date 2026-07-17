@@ -22,4 +22,15 @@ describe("EvidenceStrengthBadge", () => {
     );
     expect(screen.queryByText(/disputed/i)).not.toBeInTheDocument();
   });
+
+  it("renders as a plain, unlinked badge by default", () => {
+    render(<EvidenceStrengthBadge strength="high" />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("links to its methodology definition when linked (docs/DECISIONS.md D-099)", () => {
+    render(<EvidenceStrengthBadge strength="high" linked />);
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "/methodology#evidence-strength-heading");
+  });
 });

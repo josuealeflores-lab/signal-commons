@@ -7,13 +7,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("SiteHeader", () => {
-  it("renders Sectors, Companies, Signals, and Methodology as real links (Milestone 2)", () => {
+  it("renders Sectors, Companies, Signals, Methodology, and About as real links", () => {
     render(<SiteHeader />);
     for (const [name, href] of [
       ["Sectors", "/sectors"],
       ["Companies", "/companies"],
       ["Signals", "/signals"],
       ["Methodology", "/methodology"],
+      ["About", "/about"],
     ]) {
       const links = screen.getAllByRole("link", { name });
       expect(links[0]).toHaveAttribute("href", href);

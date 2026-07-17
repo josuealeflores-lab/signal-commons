@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { DemoDataBanner } from "@/components/layout/DemoDataBanner";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { SITE_URL } from "@/lib/content/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -10,9 +11,20 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+const DESCRIPTION =
+  "A demo dataset exploring how AI adoption signals could be tracked across seven public-interest sectors. Demo data only -- not live monitoring.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Signal Commons",
-  description: "Emerging AI Impact Radar",
+  description: DESCRIPTION,
+  openGraph: {
+    siteName: "Signal Commons",
+    title: "Signal Commons",
+    description: DESCRIPTION,
+    type: "website",
+    url: SITE_URL,
+  },
 };
 
 export default function RootLayout({

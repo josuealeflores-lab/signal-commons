@@ -2,9 +2,16 @@ import type { Metadata } from "next";
 import { SectorCard } from "@/components/dashboard/SectorCard";
 import { getSectorOverview } from "@/lib/data/dashboard";
 
+const TITLE = "Sectors — Signal Commons";
+const DESCRIPTION = "All seven sectors Signal Commons tracks, with equal prominence.";
+
 export const metadata: Metadata = {
-  title: "Sectors — Signal Commons",
-  description: "All seven sectors Signal Commons tracks, with equal prominence.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default async function SectorsIndexPage() {

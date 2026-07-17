@@ -73,4 +73,10 @@ describe("SourceList", () => {
     expect(screen.getByText(/analysis/i)).toBeInTheDocument();
     expect(screen.getByText(/supports this signal/i)).toBeInTheDocument();
   });
+
+  it("links the source-tier label to its methodology definition (docs/DECISIONS.md D-099)", () => {
+    render(<SourceList signal={signal} sources={sources} />);
+    const link = screen.getByRole("link", { name: /source$/i });
+    expect(link).toHaveAttribute("href", "/methodology#source-tiers-heading");
+  });
 });
