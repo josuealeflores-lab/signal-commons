@@ -2,13 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import {
-  runAnalysisAndRecord,
-  ModelProviderError,
-  ModelResponseParseError,
-  ModelTimeoutError,
-  UnsupportedResearchItemError,
-} from "./run-analysis";
+import { runAnalysisAndRecord } from "./run-analysis";
+import { errorMessageFor } from "./error-messages";
 
 /**
  * Thin "use server" wrapper over run-analysis.ts's injectable core — same
@@ -17,15 +12,11 @@ import {
  * never service-role. Reviewer-triggered only: this Server Action is only
  * ever invoked by an explicit form submission on the research-item detail
  * page, never automatically. Never calls submit_review_action.
+ *
+ * The error-message mapping itself lives in error-messages.ts, not here —
+ * a "use server" file may only export async functions, and errorMessageFor
+ * is a plain synchronous function (docs/DECISIONS.md D-097).
  */
-
-function errorMessageFor(err: unknown): string {
-  if (err instanceof ModelTimeoutError) return "Copilot analysis timed out. Try again.";
-  if (err instanceof ModelProviderError) return "Copilot analysis failed (provider error). Try again.";
-  if (err instanceof UnsupportedResearchItemError) return "Copilot analysis is not available for this item.";
-  if (err instanceof ModelResponseParseError) return "Copilot analysis returned an unexpected response. Try again.";
-  return "Copilot analysis failed. Try again.";
-}
 
 export async function runCopilotAnalysis(researchItemId: string): Promise<void> {
   let notice: string | null = null;

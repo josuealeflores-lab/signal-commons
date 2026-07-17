@@ -102,7 +102,7 @@ export default async function SectorDetailPage({ params, searchParams }: SectorD
         <h2 className="mt-8 text-lg font-semibold text-indigo-navy">Companies</h2>
         {hasActiveFilters ? (
           <p className="mt-1 text-xs text-slate-gray">
-            Filtered — this sector has 3 companies in total.
+            Showing {filteredCompanies.length} of {view.companies.length} companies in this sector.
           </p>
         ) : null}
         <ul className="mt-3 flex flex-col gap-3">
