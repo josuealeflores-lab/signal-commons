@@ -4,6 +4,7 @@ import { CompanyListItem } from "@/components/companies/CompanyListItem";
 import { SectorIcon } from "@/components/dashboard/SectorIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getCompanyTypeLabel } from "@/lib/content/labels";
+import { getSectorContext } from "@/lib/content/sector-context";
 import { filterCompanyViews, getSectorDetailView } from "@/lib/data/browse";
 import type { EvidenceStrength } from "@/lib/data/schema";
 
@@ -55,6 +56,8 @@ export default async function SectorDetailPage({ params, searchParams }: SectorD
             </p>
           </div>
         </div>
+
+        <p className="mt-4 text-sm text-ink">{getSectorContext(view.sector.slug)}</p>
 
         <form className="mt-6 flex flex-wrap items-end gap-3" method="get">
           <div className="flex flex-col gap-1">

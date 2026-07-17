@@ -52,8 +52,8 @@ export default async function SignalDetailPage({ params }: SignalDetailPageProps
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <EvidenceStrengthBadge strength={signal.evidence_strength} />
-          <VerificationStatusBadge status={signal.verification_status} />
+          <EvidenceStrengthBadge strength={signal.evidence_strength} linked />
+          <VerificationStatusBadge status={signal.verification_status} linked />
         </div>
 
         <Card as="section" aria-labelledby="summary-heading">

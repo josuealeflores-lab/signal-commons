@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import MethodologyPage from "@/app/methodology/page";
+import { CORRECTIONS_EMAIL } from "@/lib/content/site";
 
 describe("MethodologyPage", () => {
   it("renders the demo-data, source-tier, evidence-strength, and verification-status sections", () => {
@@ -43,5 +44,14 @@ describe("MethodologyPage", () => {
     expect(
       screen.getByText(/no published or draft content on this site was ever ai-decided, ai-approved, ai-verified/i),
     ).toBeInTheDocument();
+  });
+
+  it("makes the Corrections section actionable with the confirmed, monitored, non-personal mailto address (docs/DECISIONS.md D-099)", () => {
+    render(<MethodologyPage />);
+    const link = screen.getByRole("link", { name: CORRECTIONS_EMAIL });
+    expect(link).toHaveAttribute("href", `mailto:${CORRECTIONS_EMAIL}`);
+    expect(CORRECTIONS_EMAIL).toBe("corrections@signal-commons.org");
+    expect(screen.queryByText(/gmail/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/corrections are reviewed manually/i)).toBeInTheDocument();
   });
 });

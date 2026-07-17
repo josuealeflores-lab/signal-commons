@@ -7,9 +7,16 @@ import { COMPANY_SORT_OPTIONS, filterCompanyViews, getAvailableCompanyTypes, get
 import { getSectors } from "@/lib/data/repository";
 import type { EvidenceStrength } from "@/lib/data/schema";
 
+const TITLE = "Companies — Signal Commons";
+const DESCRIPTION = "Browse the demo company roster across all seven sectors.";
+
 export const metadata: Metadata = {
-  title: "Companies — Signal Commons",
-  description: "Browse the demo company roster across all seven sectors.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 interface CompaniesIndexPageProps {

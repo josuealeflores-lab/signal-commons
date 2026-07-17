@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SignalFilterForm } from "@/components/signals/SignalFilterForm";
 import { SignalListItem } from "@/components/signals/SignalListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -7,9 +8,16 @@ import { filterSignalViews, getAvailableMonths, getAvailableSignalTypes, getSign
 import { getSectors } from "@/lib/data/repository";
 import type { EvidenceStrength, VerificationStatus } from "@/lib/data/schema";
 
+const TITLE = "Signals — Signal Commons";
+const DESCRIPTION = "Published signals across all seven sectors, with source-linked evidence.";
+
 export const metadata: Metadata = {
-  title: "Signals — Signal Commons",
-  description: "Published signals across all seven sectors, with source-linked evidence.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 interface SignalsIndexPageProps {
@@ -49,6 +57,16 @@ export default async function SignalsIndexPage({ searchParams }: SignalsIndexPag
         <p className="mt-2 max-w-2xl text-sm text-slate-gray">
           Every published signal in this demo dataset, linked to its company and evidence.
           Draft signals are never shown here.
+        </p>
+        <p className="mt-1 text-xs text-slate-gray">
+          Not sure what counts as a signal?{" "}
+          <Link
+            href="/about#what-is-a-signal-heading"
+            className="font-semibold text-deep-teal underline underline-offset-2"
+          >
+            See the plain-language explainer
+          </Link>
+          .
         </p>
 
         <div className="mt-6">

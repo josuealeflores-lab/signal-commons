@@ -23,11 +23,13 @@ import { describe, expect, it } from "vitest";
  * modules are deliberately not `server-only`-guarded so they stay
  * hermetically testable under plain `npm test` -- see http-client.ts's
  * header comment; src/lib/copilot/client.ts and src/lib/digest/client.ts
- * follow the same rationale, see their own header comments).
+ * follow the same rationale, see their own header comments). `lib/content`
+ * (added in M10, docs/DECISIONS.md D-099) holds static public copy/labels
+ * only -- scanned here too since it's new public-surface code.
  */
 
 const SRC_ROOT = path.resolve(__dirname, "..", "..", "src");
-const SCANNED_DIRS = ["app", "components", "lib/data", "lib/review", "lib/copilot", "lib/digest"];
+const SCANNED_DIRS = ["app", "components", "lib/data", "lib/review", "lib/copilot", "lib/digest", "lib/content"];
 // lib\/connectors\/ already covers commit.ts/commit-serializer.ts/cli-guards.ts
 // (M6C) since they live under src/lib/connectors/usaspending/. connector-usaspending
 // is an additional, explicit pattern for the CLI script itself

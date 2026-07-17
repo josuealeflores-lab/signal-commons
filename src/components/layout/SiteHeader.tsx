@@ -9,6 +9,7 @@ const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "Companies", href: "/companies" },
   { label: "Signals", href: "/signals" },
   { label: "Methodology", href: "/methodology" },
+  { label: "About", href: "/about" },
 ];
 
 function NavList() {

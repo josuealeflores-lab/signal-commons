@@ -83,8 +83,8 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-semibold text-ink">{signal.headline}</span>
                     <div className="flex flex-wrap gap-2">
-                      <EvidenceStrengthBadge strength={signal.evidence_strength} />
-                      <VerificationStatusBadge status={signal.verification_status} />
+                      <EvidenceStrengthBadge strength={signal.evidence_strength} linked />
+                      <VerificationStatusBadge status={signal.verification_status} linked />
                     </div>
                   </div>
                   <p className="mt-1 text-sm text-slate-gray">{signal.summary}</p>

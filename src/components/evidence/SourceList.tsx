@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /**
  * Deliberately minimal, local prop types (not the full Signal/SourceDocument
  * from @/lib/data/schema) -- this component is shared between public routes
@@ -71,8 +73,14 @@ export function SourceList({ signal, sources }: SourceListProps) {
               {source.source_title}
             </a>
             <p className="mt-1 text-xs text-slate-gray">
-              {source.publisher} &middot; {formatEnumLabel(source.source_tier)} source &middot; published{" "}
-              {formatDate(source.published_at)}
+              {source.publisher} &middot;{" "}
+              <Link
+                href="/methodology#source-tiers-heading"
+                className="underline underline-offset-2 hover:text-deep-teal"
+              >
+                {formatEnumLabel(source.source_tier)} source
+              </Link>{" "}
+              &middot; published {formatDate(source.published_at)}
             </p>
             <p className="mt-1 text-xs text-slate-gray">
               {formatEnumLabel(evidence.claim_type)} &middot; {formatEnumLabel(evidence.support_type)} this signal

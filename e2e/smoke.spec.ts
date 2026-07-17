@@ -76,6 +76,21 @@ test("unknown signal id returns the branded 404", async ({ page }) => {
   await expect(page.getByRole("link", { name: /back to dashboard/i })).toBeVisible();
 });
 
+test("About route is reachable from public nav and renders the FAQ/About page (docs/DECISIONS.md D-099)", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Primary", { exact: true }).getByRole("link", { name: "About", exact: true }).click();
+  await expect(page).toHaveURL(/\/about$/);
+  await expect(page.getByRole("heading", { name: "About", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /what is a signal\?/i })).toBeVisible();
+});
+
+test("public nav and footer never expose a reviewer or auth link", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /reviewer/i })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /research queue/i })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /log in|log out|sign in/i })).toHaveCount(0);
+});
+
 test("draft signal id behaves identically to an unknown id and never leaks its content", async ({ page }) => {
   const response = await page.goto("/signals/demo-signal-1-3");
   expect(response?.status()).toBe(404);
