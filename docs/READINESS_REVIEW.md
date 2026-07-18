@@ -31,6 +31,7 @@ Re-walked against `docs/TECHNICAL_ARCHITECTURE.md`'s security checklist and the 
 - **No rate limiting** on mutation endpoints (in particular `submit_review_action`). Documented since the Milestone 4 plan's risk section; not addressed this milestone.
 - **No idempotency keys** on review actions or ingestion (ingestion doesn't exist yet). A double form-submission is already guarded by the per-action valid-current-status check, but a true idempotency-key column is deferred.
 - Both gaps are tracked in `docs/DECISIONS.md`'s "Intentionally deferred decisions" list.
+- **Status update:** both gaps were promoted from "accepted" to **blocking for M11** (`docs/DECISIONS.md` D-098), with the full implementation design recorded in D-100 (M11 Phase B) — this M5-era passage is left otherwise unchanged as a historical record of the original finding.
 
 ### Supabase security advisors (production project)
 

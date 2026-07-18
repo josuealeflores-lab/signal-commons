@@ -1,32 +1,32 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSessionSupabaseClient } from "@/lib/supabase/session-client";
+import { getReviewerAccessDecision, type ReviewerAccessClient } from "@/lib/review/access";
 
 /**
  * Layer 2 of 3 protecting reviewer routes (docs/DECISIONS.md): middleware.ts
  * redirects unauthenticated requests before rendering; this layout re-checks
  * the session server-side and additionally checks reviewer_profiles.is_active
  * (a DB join middleware can't cheaply do on every matched request); RLS and
- * submit_review_action's own reviewer gate are the third, ultimately
- * authoritative layer.
+ * submit_review_action's/record_copilot_analysis's own reviewer gate are the
+ * third, ultimately authoritative layer. The decision itself now lives in
+ * src/lib/review/access.ts (docs/DECISIONS.md D-100 Phase A) -- an app-layer
+ * UX/routing helper only, re-evaluated fresh on every render, never the
+ * security boundary.
  */
 export default async function ReviewerLayout({ children }: { children: React.ReactNode }) {
   const supabase = await getSessionSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Narrowing cast, not a behavior change: the real SupabaseClient's
+  // Postgrest query builder is too deeply generic/overloaded for TS to
+  // structurally compare against ReviewerAccessClient's minimal interface
+  // without hitting its instantiation-depth limit (the same category of
+  // cast already used in src/lib/data/repository.ts for this reason).
+  const decision = await getReviewerAccessDecision(supabase as unknown as ReviewerAccessClient);
 
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("reviewer_profiles")
-    .select("id, is_active")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile || !profile.is_active) {
+  if (!decision.allowed) {
+    if (decision.reason === "no_session") {
+      redirect("/auth/login");
+    }
     redirect(`/auth/login?error=${encodeURIComponent("Your reviewer access is not active.")}`);
   }
 
