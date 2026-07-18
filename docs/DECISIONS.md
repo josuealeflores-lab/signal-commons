@@ -966,3 +966,114 @@ No code implementation of any kind; no migration; no schema/RLS/RPC change; no S
 **Dev/CI and production considerations:** M10 introduces no schema change, so — like M8A and M9 — there is no production migration-alignment step. Production remains schema-aligned through M7, with 0 active reviewers and no `ANTHROPIC_API_KEY` provisioned; M10 does not change, require, or imply either of those standing gates. Unlike D-096/D-097/D-098's purely internal docs-only changes, M10's implementation ships **live public-facing content and routes** the moment it merges (a new `/about` route, new nav/footer links, new badge links, `robots.ts`/`sitemap.ts`) — this is why a focused Cowork/Opus 4.8 High implementation review is required before merge (step 8 above), not treated as routine polish.
 
 **Consequence:** This is **docs-only planning work.** No code, migration, dependency, API call, database write, Supabase change, Vercel change, or env-file change is authorized by this decision. The M10 plan may proceed to its next step (confirming the corrections mailbox and beginning implementation) only once that step is separately, explicitly approved — not implied by this entry.
+
+### D-100 — M11 Reviewer & Operational Hardening / Production Reviewer Activation Readiness Plan: PASS WITH NOTES; plan approved
+
+**Choice:** Cowork/Opus 4.8 High reviewed the M11 plan (per D-098's adopted roadmap: *"M11 — Reviewer & Operational Hardening → Production Reviewer Activation"*) and returned **PASS WITH NOTES**. M11 prepares Signal Commons for safe operational use by a real production reviewer, without activating production AI. The milestone is split into two independently gated phases, plus a separate final activation gate — this split exists specifically so schema/RPC risk (Phase B) stays isolated from, and more heavily reviewed than, non-schema hardening work (Phase A), and so that neither phase's merge is ever confused with actually turning on a real reviewer account.
+
+**Two-phase split, restated as the top-level scope:**
+- **Phase A** — no schema/RLS/RPC change, no `test:db` required.
+- **Phase B** — a schema/RPC migration, `test:db` required.
+- **Production reviewer activation** — a separate, later, final gate, occurring only after both phases are merged and the production-readiness checklist is complete. It is never bundled into either phase's merge.
+
+**Phase A scope:**
+- Extract the reviewer `is_active` check currently inline in `src/app/(reviewer)/layout.tsx` into a small, pure, unit-testable helper (e.g. `src/lib/review/access.ts`). **This helper is app-layer UX/routing convenience only — it determines what the layout renders/redirects to, and exists so a real gap (zero hermetic coverage of that check) can be closed. It is explicitly not, and never becomes, the security boundary.** The authoritative gate remains the RLS policies and each RPC's own first-statement `is_active` re-check (`submit_review_action`, `record_copilot_analysis`), exactly as today — Phase A changes no behavior and grants no new trust to the app layer.
+- Hermetic (`npm test`) unit tests for the extracted helper (active → allowed; inactive → denied; no profile row → denied) and a regression test for the login flow's distinct "Your reviewer access is not active." message.
+- `docs/REVIEWER_RUNBOOK.md` (new, reviewer-facing) added later within Phase A — see the Observability/runbook requirements below for its required contents.
+- `docs/DEPLOYMENT.md` expanded later within Phase A with: a consolidated production-reviewer-activation checklist, a key-rotation runbook section, an observability checklist (see below), and a correction to the file's own stale "known, accepted, non-blocking follow-ups" section, which still describes rate limiting/idempotency as non-blocking even though D-098 promoted both to blocking for this milestone.
+- **Login-abuse posture decision (recorded here):** M11 relies on Supabase Auth's existing, built-in project-level rate limiting for authentication endpoints. No bespoke app-level login-lockout tracking or CAPTCHA is built in M11 — that would require new stateful storage for a risk Supabase's platform already mitigates, for a single-reviewer deployment.
+- **Password-reset/recovery decision (recorded here):** self-service password reset is explicitly deferred, not built in M11. The existing Supabase Auth Admin-API-based manual reset remains the recovery path for the one initial production reviewer. This is acceptable at current scale and should be revisited if/when a second real reviewer is added — flagged, not silently dropped.
+
+**Phase B scope:**
+- True idempotency keys on reviewer-workflow mutation RPCs, plus per-reviewer rate limiting on the same RPCs.
+- **Endpoints in scope:** `submit_review_action`, `record_copilot_analysis` — the only two reviewer-workflow mutation RPCs that exist today.
+- **Explicitly excluded:** `commit_usaspending_candidate` — connector/service-role/CLI-scoped, invoked only from the ingestion script's `--commit` mode, never from any reviewer UI action, and already has its own deterministic-id-based idempotency from M6C's `commit.ts`; that RPC's operational hardening belongs to M13 ("Real Connector Operations"), not M11. **Digest** (M8A) is also excluded — it persists nothing to key an idempotency or rate-limit check against, and its own run-logging is explicitly an M12 decision, not M11's to make.
+
+**Idempotency table design:**
+
+```sql
+create table public.idempotency_keys (
+  key uuid primary key,
+  reviewer_id uuid not null references public.reviewer_profiles (id),
+  endpoint text not null check (endpoint in ('submit_review_action', 'record_copilot_analysis')),
+  payload_hash text not null,
+  response jsonb,
+  created_at timestamptz not null default now()
+);
+alter table public.idempotency_keys enable row level security;
+-- No SELECT/INSERT/UPDATE/DELETE policy for `authenticated` -- this table
+-- is touched only from inside the two SECURITY DEFINER RPCs, never read or
+-- written directly by any client, mirroring review_actions' own
+-- append-only, RPC-only write pattern.
+```
+
+Retention: 24 hours (matching common idempotency-key practice, e.g. Stripe). No automatic deletion job is added in M11 (a new scheduled job is out of scope for this milestone, and volume is low with one initial reviewer) — a periodic manual cleanup command is documented in `docs/DEPLOYMENT.md` as a low-priority, non-blocking operational task.
+
+**Cowork-required idempotency invariants — all five locked in by this entry, non-negotiable for the Phase B migration:**
+
+- **A. Single transaction:** the idempotency-key insert, the actual mutation, and the response storage all happen inside one RPC invocation's single database transaction — never split across separate calls or connections.
+- **B. First-vs-replay detection:** ownership of a key is determined solely by whether `INSERT ... ON CONFLICT (key) DO NOTHING` actually inserted a row. A `SELECT`-then-`INSERT` pattern is explicitly forbidden — it reintroduces the exact race condition the unique constraint exists to prevent (a gap between checking and inserting that two concurrent callers could both pass through).
+- **C. Response storage:** a successful, committed key's row must have its `response` populated within that same transaction before the RPC returns. **Defensive guard, required:** if a replay lookup ever finds a matching key with `response` still `null`, the RPC must raise an explicit "request with this idempotency key is still being processed" error — it must never treat a null response as a successful empty result, and must never return `null` as if it were a valid cached response.
+- **D. Failure behavior:** if the underlying business logic fails, or the rate-limit check (below) rejects the request, the entire transaction — including the idempotency-key insert — rolls back. **Failed attempts are never memoized.** Only a genuinely successful mutation results in a stored key + response; a client retrying the same key after a failure gets a fresh attempt, not a cached failure.
+- **E. Replay security checks:** before returning any stored response for a replay, the RPC must verify all three of: (1) `reviewer_id = auth.uid()` for the current caller; (2) the `endpoint` column matches the RPC being called; (3) the server-computed `payload_hash` of the current request matches the stored `payload_hash`. All three must hold — none may be skipped as an optimization.
+
+**Replay behavior (derived directly from the invariants above):**
+- Same key + same endpoint + same reviewer + matching `payload_hash` → return the stored response; perform no new mutation.
+- Same key, different `payload_hash` → raise a distinct, explicit idempotency-conflict error (`idempotency key already used for a different request`); never silently pick a side or overwrite.
+- Same key, different reviewer → reject outright; **never return another reviewer's stored response under any circumstance** — this is a security boundary, not just a correctness nicety (Required invariant E).
+- Same key, different endpoint → reject.
+
+**Race-condition design (Cowork's conclusion, recorded as the accepted design):** the `idempotency_keys.key` primary-key unique constraint plus `INSERT ... ON CONFLICT` is **sufficient concurrency control** — no `SELECT ... FOR UPDATE` and no Postgres advisory lock is required, **provided all five invariants above hold**. Two near-simultaneous requests carrying the identical key cannot both mutate: Postgres serializes the unique-index insert conflict, so the second caller's `INSERT` blocks until the first caller's transaction fully commits or rolls back, after which the second caller deterministically falls into the "existing row" branch (a completed, response-populated row on commit, or — per invariant D — no row at all if the first caller rolled back, in which case the second caller now free to claim the key itself). **This design is accepted here; it does not skip Phase B's own separate, migration-first Cowork/Opus review before the migration is applied to dev/CI** (see "Phase B future gate" below) — D-100 settles the *design*, not the *implementation*.
+
+**Ordering with rate limits:**
+- The idempotency replay check runs **before** the rate-limit check, inside the same RPC invocation.
+- A safe replay (matching key + payload + reviewer + endpoint) is **never rate-limited** — it performs no new mutation, so it cannot contribute to abuse.
+- The rate-limit check applies **only** to the new-mutation path (i.e., only when the idempotency-key insert actually claimed a new key).
+- A rate-limit rejection rolls back the entire transaction, **including the idempotency-key insert** (per invariant D) — a rate-limited attempt is not memoized and a subsequent retry with the same key is treated as a fresh new-mutation attempt, not a replay of a failure.
+
+**Rate-limit design:**
+- Proposed defaults: `submit_review_action` — **20 per minute per reviewer**; `record_copilot_analysis` — **10 per minute per reviewer** (tighter, since Copilot calls become computationally/cost-significant once M12 activates a real provider, even though no live call happens in M11).
+- Separate caps per endpoint, not a shared budget.
+- Rolling one-minute window, computed via `count(*)` against each RPC's own existing history table (`review_actions` / `copilot_analyses`) filtered to `reviewer_id = auth.uid() and created_at > now() - interval '1 minute'` — no new table needed for this part; only the idempotency-key table above is new.
+- Both thresholds are named SQL constants with an inline comment in the migration, not a new configuration table — trivially adjustable later via a new migration if real usage proves them wrong.
+- On rejection: a distinct, typed exception, mapped client-side to a friendly, honest, specific message — **"You're submitting too quickly. Please wait a moment and try again."** — following the same typed-error, no-raw-internal-text discipline already established for `ModelNotConfiguredError` (D-097). The raw SQL error text is never exposed to the reviewer.
+- Both thresholds sit far above what a human reviewer can plausibly trigger by hand (reading one item, deciding, clicking one button) — they exist to stop automated/scripted abuse or a runaway client bug, not to constrain normal human pace.
+
+**Required test matrix:**
+
+*Phase A (hermetic, `npm test`):*
+- Unit tests for the extracted `is_active` helper (active/inactive/no-profile-row).
+- Regression test for the login flow's inactive-reviewer message text.
+
+*Phase B (`test:db` required):*
+- A **genuine concurrent race test** — two parallel database sessions/connections issuing the identical idempotency key and payload at (as close as the test harness allows to) the same time — asserting exactly one mutation occurs and both callers receive the identical response.
+- Safe-replay test (same key/payload/reviewer/endpoint after successful completion) returns the cached response, creates no second row.
+- Conflicting-replay test (same key, different payload) raises the distinct conflict error.
+- Cross-reviewer replay rejection test (same key, different reviewer) is rejected and never leaks the first reviewer's response.
+- Rate-limit-over-cap test asserts the typed, honest error on exceeding the per-minute threshold.
+- Rate-limit-rejection-rolls-back-key test asserts a rejected attempt leaves no `idempotency_keys` row behind.
+- Replay-bypasses-rate-limit test asserts a safe replay succeeds even when the reviewer is currently at/over their rate cap.
+- Failed-mutation-rolls-back-key test asserts a genuine business-logic failure (e.g. an invalid `research_item_id`) leaves no `idempotency_keys` row behind.
+- Normal-usage-no-false-positive test asserts ordinary single-action-at-a-time usage never triggers the rate cap.
+- All of the above run for **both** `submit_review_action` and `record_copilot_analysis` — not just one.
+- No changes needed to `tests/integration/reviewer-profiles-rls.test.ts` — its existing inactive/non-reviewer denial coverage is unaffected by Phase A/B.
+
+**Observability/runbook requirements (Cowork-required additions):**
+- The observability checklist in `docs/DEPLOYMENT.md` must map to **concrete existing surfaces**, not abstract categories: Supabase's own logs for RPC errors, Vercel's own logs for server-action errors, the `review_actions` table, the `copilot_analyses` table, the `ingestion_runs` table, and the `corrections@signal-commons.org` inbox.
+- The checklist must state honestly that M11's observability is **manual monitoring, not automated alerting** — no new paid APM/alerting dependency is introduced, and no claim of automated coverage should be implied.
+- Phase B should additionally consider **structured logging of rate-limit hits and idempotency conflicts** (e.g. a consistent log line shape when either guard clause fires) so a manual log review can actually find these events — a recommendation for Phase B's implementation, not a new table or job.
+- `docs/REVIEWER_RUNBOOK.md` must cover, in addition to the general reviewer-facing content already scoped in the plan (login, queue triage, approve/reject/dispute, Copilot/digest "not configured" framing, demo-vs-real framing, reporting issues, AI-is-never-final framing): **reviewer activate/deactivate procedure, admin-side password reset procedure, a suspected-account-compromise response procedure, a Phase B rollback note, how to inspect the audit trail (`review_actions` history), and an explicit restatement that AI features remain not configured until M12** — a reviewer using the system in M11 should never be surprised that Copilot/digest don't respond live.
+
+**Production gates:**
+- No production AI activation in M11. No `ANTHROPIC_API_KEY` provisioning. No connector writes. No real-data publishing. No service-role runtime expansion. All unchanged, standing gates, none opened by this entry.
+- Leaked-password protection is its own separate, production-Supabase-config-touching gate — not part of Phase A or Phase B's code merge. **Its actual state must be verified live against the production Supabase project/dashboard (or the Supabase advisors MCP tool) at activation time — never inferred from `docs/READINESS_REVIEW.md` or any other existing document**, since a setting recorded as disabled months ago could have changed since.
+- **Production reviewer activation is separate and final, and happens only after all of the following are true:** Phase A merged; Phase B merged; the Phase B migration applied to production; the Phase B code deployed to production; leaked-password protection verified/enabled (per the live-verification requirement above); and the consolidated production-readiness checklist completed. No subset of these substitutes for the others.
+- **Reviewer activation is independent of AI activation (M12):** a real reviewer can be activated and can perform full human review — approve, edit-and-approve, reject, mark disputed — entirely through Phase A/B's hardened path while Copilot and the queue digest continue to show "AI features are not configured in this environment." Activating a reviewer never implies or requires activating AI.
+
+**Phase B future gate:** this entry (D-100) settles the *design* described above — it does not authorize writing or applying the Phase B migration. The Phase B migration still requires its own **separate, migration-first Cowork/Opus review** before it is ever applied to dev/CI (mirroring M6A's migration-first discipline), and a **second, post-`test:db` implementation review** before Phase B is committed/merged — two distinct Cowork/Opus review points for Phase B, not one.
+
+**Implementation sequence:** this D-100 entry first; docs-only quality gates (`lint`/`typecheck`/`test`/`build`, no `test:db`); D-100 committed/merged as a docs-only checkpoint if separately approved; Phase A implementation (extraction, hermetic tests, runbooks/checklists) with local gates, no `test:db`; a lighter Phase A Cowork/Opus review (no schema surface); Phase A commit/PR/merge; the Phase B migration drafted and separately reviewed **before** any implementation code is written; Phase B implementation plus the full test matrix above, with `test:db` run; a heavier Phase B Cowork/Opus review (RLS/RPC correctness, race-condition and invariant scrutiny); Phase B commit/PR/merge; a separately-approved step to enable leaked-password protection in production (dashboard/MCP toggle, not code, with live re-verification); a separately-approved step to create the first real production reviewer account, following the consolidated activation checklist; a final, read-only M11 readiness check, mirroring the pattern used after M9/M10.
+
+**Dev/CI and production considerations:** Phase A introduces no schema change and needs no production migration-alignment step. Phase B does introduce a schema change (the new `idempotency_keys` table plus the two RPC replacements) and therefore does require the same migration-before-activation sequencing this project has used since M6A — the migration must be applied and verified before any reviewer-facing code depends on it, and well before production reviewer activation. Production remains schema-aligned through M7 today, with 0 active reviewers and no `ANTHROPIC_API_KEY` provisioned; neither standing gate is changed by this entry.
+
+**Consequence:** This is **docs-only planning work.** No code, migration, dependency, API call, database write, Supabase change, Vercel change, or env-file change is authorized by this decision. The M11 plan may proceed to its next step (Phase A implementation) only once that step is separately, explicitly approved — not implied by this entry. The Phase B migration, leaked-password-protection enablement, and production reviewer activation each remain their own later, separately-approved steps, exactly as this entry's phase/gate structure requires.
