@@ -1,6 +1,6 @@
 # Deployment — Environments, Production Setup, and Runbooks
 
-This document covers Milestone 5's deployment/operational hardening work: environment separation, one-time production Supabase setup, Vercel cutover, the production verification checklist, and the manual reviewer-provisioning runbook. See `docs/DECISIONS.md` D-075 through D-081 for the reasoning behind each choice below.
+This document originated with Milestone 5's deployment/operational hardening work (environment separation, one-time production Supabase setup, Vercel cutover, the production verification checklist) and has since accumulated later milestones' runbooks as they were added: M9's production AI activation runbook, and M11 Phase A's production reviewer activation checklist, observability checklist, and key-rotation runbook. See `docs/DECISIONS.md` D-075 through D-081 for the M5-era reasoning, and D-097/D-100 for the later additions.
 
 ## Environment map
 
@@ -75,17 +75,58 @@ Production verification instead uses these fixture-free, mostly read-only checks
 - An unknown signal/sector/company route returns the same branded 404.
 - `/research-queue` and `/reviewer` redirect to `/auth/login` while logged out.
 
-## Reviewer provisioning runbook (manual, for later — not executed this milestone)
+## Production reviewer activation checklist (manual, for later — a separate, production-touching gate)
 
-Production has zero real, loginable reviewer accounts after Milestone 5 — only the inactive Demo Baseline Reviewer, which cannot log in. To provision one real reviewer, when you're ready:
+Production has zero real, loginable reviewer accounts today — only the inactive Demo Baseline Reviewer, which cannot log in. **Production reviewer activation is explicitly not part of M11 Phase A, and not part of Phase B's code merge either — it is its own separate, final, explicitly-approved step (`docs/DECISIONS.md` D-100).** Every box below must be true before a real reviewer account is created:
 
-0. **Before provisioning any real reviewer account tied to Milestone 6 (Fable pre-M6 review fix — see `docs/DECISIONS.md` D-085): enable Supabase Auth's leaked-password protection** (Authentication → Policies, in the production project's dashboard) if it isn't already on. This was flagged as a recommended, zero-code follow-up back in `docs/READINESS_REVIEW.md`'s M5 security review; it becomes a concrete prerequisite the moment a real reviewer account might review real (non-demo) connector-sourced items, not just a generic best practice to get to eventually.
+- [ ] M11 Phase A merged (reviewer-gate helper extraction, hermetic tests, this checklist, `docs/REVIEWER_RUNBOOK.md`, the observability and key-rotation sections below).
+- [ ] M11 Phase B merged (idempotency keys + rate limiting on `submit_review_action`/`record_copilot_analysis`, per D-100).
+- [ ] Phase B's migration applied to the production Supabase project.
+- [ ] Phase B's code deployed to production (Vercel).
+- [ ] Leaked-password protection **verified live**, directly against the production Supabase project/dashboard (or the Supabase advisors MCP tool) — **never inferred from this document or `docs/READINESS_REVIEW.md`**, since a setting recorded as disabled at some point in the past could have changed since.
+- [ ] The remaining steps below completed.
+
+**Reviewer activation is independent of AI activation (M12).** A real reviewer can be activated and can perform full human review — approve, edit-and-approve, reject, mark disputed, reopen — entirely through the Phase A/B-hardened path while Copilot and the queue digest continue to show "AI features are not configured in this environment." `ANTHROPIC_API_KEY` is **not required** for a human-only reviewer activation. **No production AI activation is authorized as part of M11 (Phase A or Phase B).**
+
+Once every box above is checked, to provision one real reviewer:
+
 1. In the Supabase dashboard for the production project: **Authentication → Add User**, with the real reviewer's email and a password (or use the Admin API's `createUser` directly, one-off, with `email_confirm: true`).
 2. Note the created user's UID.
 3. Insert one row into `reviewer_profiles`: `id` = that UID, `display_name` = the reviewer's real name, `is_active = true`. This can be done via the Supabase SQL editor or a small one-off script using the service-role client — never client-side, and never via `supabase/seed-reviewer.ts` (that script is for the dev/CI shared-password fixture set only) or `supabase/seed-baseline-reviewer.ts` (that script is exclusively for the inactive system identity).
-4. The new reviewer can now sign in at `/auth/login` on the production URL and access `/research-queue`/`/reviewer`.
+4. The new reviewer can now sign in at `/auth/login` on the production URL and access `/research-queue`/`/reviewer`. Share `docs/REVIEWER_RUNBOOK.md` with them.
 
-This runbook is documentation only — no real reviewer account was created as part of Milestone 5 or by this update.
+This checklist is documentation only — no real reviewer account has been created by M11 Phase A or by this update.
+
+## Operational observability checklist (manual monitoring — M11 Phase A)
+
+**This is manual, human-performed monitoring, not automated alerting.** No new paid APM/alerting dependency is introduced in M11. Each watch item maps to a concrete, already-existing surface — not an abstract category:
+
+| Watch item | Concrete surface | When to check |
+|---|---|---|
+| App/server-action errors | Vercel deployment status, build logs, and runtime error/log dashboards (or the Vercel MCP tools `get_runtime_errors`/`get_runtime_logs`/`get_deployment_build_logs`) | After every deploy; periodically; always before/after reviewer activation |
+| RPC/auth/database errors | Supabase project logs (dashboard, or the Supabase MCP `get_logs` tool) | Same cadence as above |
+| Reviewer action audit trail | `review_actions` table (row count/rate, action types) | Periodically once a real reviewer is active; as a before/after baseline around activation |
+| AI usage, once activated | `copilot_analyses` table | Not yet relevant in M11 — table remains empty until M12 |
+| Connector run visibility | `ingestion_runs` table | Relevant starting M13 — not yet active in M11 |
+| Public corrections | `corrections@signal-commons.org` inbox (Gmail label/forwarding, confirmed live per M10) | Recurring, manual, non-technical check |
+| Change audit | GitHub PR history and `docs/DECISIONS.md` entries | Whenever reviewing what changed and why |
+
+**Before reviewer activation:** confirm Vercel and Supabase logs are both reachable and show no unexpected errors; confirm the corrections inbox is still receiving mail; confirm `review_actions` is empty or matches the expected baseline-only rows.
+
+**After reviewer activation:** spot-check `review_actions` for the new reviewer's first few actions; confirm no unexpected Supabase auth errors; confirm Vercel shows no new runtime errors correlated with the reviewer's session.
+
+## Key rotation and secret-handling runbook
+
+- **No service-role key in the public app runtime.** `SUPABASE_SERVICE_ROLE_KEY` is never added to Vercel under any scope — unchanged since M5 (see "Environment map" above). It is used only by local `:prod` seed scripts, run from a developer machine.
+- **`ANTHROPIC_API_KEY` is not provisioned anywhere yet.** Production AI activation remains M12 or later — not M11 Phase A, not Phase B.
+- **If/when AI activation happens (M12), the provider key must be server-only** — never `NEXT_PUBLIC_`-prefixed, never present in any client bundle, following the same discipline already applied to `SUPABASE_SERVICE_ROLE_KEY`. See "Production AI activation runbook" below for the full sequencing.
+- **Basic key-rotation steps (high level, any secret in this project):**
+  1. Generate/obtain the new key value from its source (the Supabase dashboard for Supabase keys; the Anthropic console for a provider key, once one exists).
+  2. Update the value in Vercel's dashboard for the affected scope(s) only — never mixing Production's and Preview's credentials.
+  3. Trigger a new deployment so the running app picks up the new value.
+  4. Revoke/invalidate the old key at its source once the new deployment is confirmed healthy.
+  5. Record the rotation (date, reason, who performed it) — a short note in this file or an internal log is sufficient; no new tooling is introduced for this in M11.
+- **If a key is suspected leaked:** rotate it immediately following the steps above — don't wait for confirmation of misuse — then separately investigate how it may have been exposed (a log line, a committed file, a screen share) and close that specific exposure path. Never "wait and see" with a suspected-leaked credential.
 
 ## Production AI activation runbook (documented only — not executed, requires separate approval)
 
@@ -103,4 +144,4 @@ Do not activate production AI as part of M9 — M9's own scope (`docs/DECISIONS.
 ## Known, accepted, non-blocking follow-ups
 
 - **`middleware.ts` → `proxy.ts` rename** — deferred; see `docs/DECISIONS.md` D-080. Next.js 16.2.10's deprecation warning for the legacy filename is cosmetic and non-blocking.
-- **Rate limiting and idempotency keys on mutation endpoints** (in particular `submit_review_action`) — a known, accepted gap carried forward from the Milestone 4 plan, not addressed this milestone. See `docs/READINESS_REVIEW.md`.
+- **Rate limiting and idempotency keys on mutation endpoints** (`submit_review_action`, `record_copilot_analysis`) — promoted from an accepted gap to **blocking for M11** (`docs/DECISIONS.md` D-098/D-100), no longer "non-blocking." The design is fully specified in D-100 (a new `idempotency_keys` table, per-reviewer rate caps); implementation is **M11 Phase B**, not yet merged as of this Phase A update — retained in this list only until Phase B closes it.
