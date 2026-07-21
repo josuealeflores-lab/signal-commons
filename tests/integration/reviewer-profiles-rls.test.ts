@@ -67,6 +67,7 @@ describe("reviewer_profiles RLS", () => {
     const { error } = await nonreviewerClient.rpc("submit_review_action", {
       p_research_item_id: A_RESEARCH_ITEM_ID,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -79,6 +80,7 @@ describe("reviewer_profiles RLS", () => {
     const { error } = await inactiveClient.rpc("submit_review_action", {
       p_research_item_id: A_RESEARCH_ITEM_ID,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });

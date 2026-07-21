@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSessionSupabaseClient } from "@/lib/supabase/session-client";
 import { editApproveFieldsSchema, type EditApproveFields, type ReviewActionName } from "./schema";
 import { buildActionNotice, type SubmitReviewActionResult } from "./action-messages";
+import { errorMessageFor } from "./error-messages";
 
 /**
  * Thin, typed wrappers over the single submit_review_action RPC
@@ -32,6 +33,17 @@ import { buildActionNotice, type SubmitReviewActionResult } from "./action-messa
  * published yet") rather than implying a real publish happened. This is a
  * UI-messaging convenience only, never the safety boundary — the RPC's own
  * behavior already decided whether anything actually published.
+ *
+ * M11 Phase B (docs/DECISIONS.md D-100): a fresh idempotency key is
+ * generated server-side via crypto.randomUUID(), once per Server Action
+ * invocation -- never accepted from the client/form, since a plain form
+ * POST has no client-side retry logic that would need a stable key across
+ * multiple attempts. Each distinct form submission is a genuinely new
+ * user-initiated mutation attempt and gets a genuinely new key, so a key
+ * can never be reused across two different reviewer actions. Errors are
+ * now mapped through error-messages.ts's errorMessageFor, which gives the
+ * five new idempotency/rate-limit SC00x codes a friendly message and
+ * leaves every other existing error message passing through unchanged.
  */
 async function callSubmitReviewAction(
   researchItemId: string,
@@ -40,9 +52,11 @@ async function callSubmitReviewAction(
   editedFields: EditApproveFields | null,
 ): Promise<void> {
   const supabase = await getSessionSupabaseClient();
+  const idempotencyKey = crypto.randomUUID();
   const { data, error } = await supabase.rpc("submit_review_action", {
     p_research_item_id: researchItemId,
     p_action: action,
+    p_idempotency_key: idempotencyKey,
     p_reviewer_note: reviewerNote,
     p_edited_fields: editedFields,
   });
@@ -52,7 +66,7 @@ async function callSubmitReviewAction(
   revalidatePath("/reviewer");
 
   if (error) {
-    redirect(`/research-queue/${researchItemId}?error=${encodeURIComponent(error.message)}`);
+    redirect(`/research-queue/${researchItemId}?error=${encodeURIComponent(errorMessageFor(error))}`);
   }
 
   const notice = buildActionNotice(action, data as SubmitReviewActionResult | null);

@@ -169,6 +169,10 @@ async function callRecordCopilotAnalysis(
 ) {
   return client.rpc("record_copilot_analysis", {
     p_research_item_id: researchItemId,
+    // A fresh key per call by default (M11 Phase B, docs/DECISIONS.md
+    // D-100) -- tests exercising replay/conflict/race behavior pass an
+    // explicit p_idempotency_key override to reuse a key across calls.
+    p_idempotency_key: crypto.randomUUID(),
     ...VALID_PAYLOAD_DEFAULTS,
     ...overrides,
   });
