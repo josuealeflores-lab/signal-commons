@@ -198,6 +198,7 @@ describe("M6D approve: private branch (draft company)", () => {
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -259,6 +260,7 @@ describe("M6D edit_approve: private branch (draft company)", () => {
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "edit_approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: { headline: "Edited private headline", evidence_strength: "medium" },
     });
@@ -298,6 +300,7 @@ describe("M6D evidence requirement: enforced on the private branch too", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -317,6 +320,7 @@ describe("M6D evidence requirement: enforced on the private branch too", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "edit_approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: { headline: "Should never apply" },
     });
@@ -355,6 +359,7 @@ describe("M6D edit_approve allow-list: still enforced on the private branch", ()
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "edit_approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: { headline: "Should never apply", publication_status: "published" },
     });
@@ -395,6 +400,7 @@ describe("M6D approve/edit_approve: published-company branch (regression, no beh
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: approveIds.itemId,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -428,6 +434,7 @@ describe("M6D approve/edit_approve: published-company branch (regression, no beh
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: editApproveIds.itemId,
       p_action: "edit_approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: { headline: "Published-branch edited headline" },
     });
@@ -469,6 +476,7 @@ describe("M6D mark_disputed: published branch (regression, no behavior change)",
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "mark_disputed",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -524,6 +532,7 @@ describe("M6D mark_disputed: draft branch (never published, new M6D behavior)", 
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "mark_disputed",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -577,6 +586,7 @@ describe("M6D reject: connector draft item", () => {
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "reject",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -624,6 +634,7 @@ describe("M6D request_evidence / reopen: functionally unchanged, jsonb contract 
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: requestEvidenceIds.itemId,
       p_action: "request_evidence",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -653,6 +664,7 @@ describe("M6D request_evidence / reopen: functionally unchanged, jsonb contract 
     const { data, error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: reopenIds.itemId,
       p_action: "reopen",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -688,6 +700,7 @@ describe("M6D lifecycle: approve-private -> mark_disputed -> reopen never publis
     const { error: approveError } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -700,6 +713,7 @@ describe("M6D lifecycle: approve-private -> mark_disputed -> reopen never publis
     const { error: disputeError } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "mark_disputed",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -712,6 +726,7 @@ describe("M6D lifecycle: approve-private -> mark_disputed -> reopen never publis
     const { error: reopenError } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "reopen",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -746,6 +761,7 @@ describe("M6D grant survival after DROP/CREATE", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "request_evidence",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -757,6 +773,7 @@ describe("M6D grant survival after DROP/CREATE", () => {
     const { error } = await anon.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -768,6 +785,7 @@ describe("M6D grant survival after DROP/CREATE", () => {
     const { error } = await nonreviewer.rpc("submit_review_action", {
       p_research_item_id: ids.itemId,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -805,6 +823,7 @@ describe("M6D item_type gate: unsupported item_type is still hard-rejected", () 
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: badTypeItemId,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });

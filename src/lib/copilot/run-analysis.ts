@@ -48,6 +48,11 @@ export interface RunCopilotAnalysisDeps {
  * record_copilot_analysis as p_model (so it's the model actually
  * recorded) — the two can never diverge, because there is no second,
  * independent resolution anywhere in this call path.
+ *
+ * M11 Phase B (docs/DECISIONS.md D-100): a fresh idempotency key is
+ * generated server-side via crypto.randomUUID(), once per call to this
+ * function -- never accepted from a caller, for the same reasoning as
+ * src/lib/review/actions.ts's identical treatment of submit_review_action.
  */
 export async function runAnalysisAndRecord(researchItemId: string, deps: RunCopilotAnalysisDeps = {}): Promise<string> {
   const getContext = deps.getContext ?? getCopilotPromptContext;
@@ -76,6 +81,7 @@ export async function runAnalysisAndRecord(researchItemId: string, deps: RunCopi
   }
 
   const supabase = await getClient();
+  const idempotencyKey = crypto.randomUUID();
   const { error: rpcError } = await supabase.rpc("record_copilot_analysis", {
     p_research_item_id: researchItemId,
     p_model: resolvedModel,
@@ -85,6 +91,7 @@ export async function runAnalysisAndRecord(researchItemId: string, deps: RunCopi
     p_missing_evidence: parsed.data.missingEvidenceQuestions,
     p_suggested_next_step: parsed.data.suggestedNextStep,
     p_confidence: parsed.data.confidence,
+    p_idempotency_key: idempotencyKey,
     p_limitations: parsed.data.limitations,
   });
   if (rpcError) throw rpcError;

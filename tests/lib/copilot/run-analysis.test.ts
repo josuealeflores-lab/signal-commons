@@ -152,6 +152,29 @@ describe("runAnalysisAndRecord", () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
+  it("passes a fresh, valid UUID as p_idempotency_key on every call, never reusing one across separate calls (M11 Phase B, docs/DECISIONS.md D-100)", async () => {
+    const client = fakeClient(async () => ({ data: { id: "ca-1" }, error: null }));
+    const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    await runAnalysisAndRecord("ri-1", {
+      getContext: async () => CONTEXT,
+      callModelImpl: async () => VALID_MODEL_JSON,
+      getClient: async () => client as never,
+    });
+    await runAnalysisAndRecord("ri-1", {
+      getContext: async () => CONTEXT,
+      callModelImpl: async () => VALID_MODEL_JSON,
+      getClient: async () => client as never,
+    });
+
+    expect(client.rpc).toHaveBeenCalledTimes(2);
+    const firstArgs = client.rpc.mock.calls[0][1] as { p_idempotency_key: string };
+    const secondArgs = client.rpc.mock.calls[1][1] as { p_idempotency_key: string };
+    expect(firstArgs.p_idempotency_key).toMatch(UUID_PATTERN);
+    expect(secondArgs.p_idempotency_key).toMatch(UUID_PATTERN);
+    expect(firstArgs.p_idempotency_key).not.toBe(secondArgs.p_idempotency_key);
+  });
+
   it("propagates an RPC-level error and does not swallow it", async () => {
     const client = fakeClient(async () => ({ data: null, error: new Error("rpc failed") }));
     await expect(

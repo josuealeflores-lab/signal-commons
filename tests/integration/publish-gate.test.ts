@@ -62,6 +62,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -92,6 +93,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "reject",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -116,6 +118,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "request_evidence",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -138,6 +141,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error: firstError } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -146,6 +150,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error: secondError } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -157,6 +162,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error } = await anonClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -172,6 +178,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "reopen",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -187,6 +194,7 @@ describe("submit_review_action: basic transitions", () => {
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "reopen",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -214,6 +222,7 @@ describe("submit_review_action: edit_approve column allow-list (RPC-level enforc
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "edit_approve",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: "Edited during integration test.",
       p_edited_fields: { headline: "Edited headline for integration test", evidence_strength: "high" },
     });
@@ -262,6 +271,7 @@ describe("submit_review_action: edit_approve column allow-list (RPC-level enforc
       const { error } = await primaryClient.rpc("submit_review_action", {
         p_research_item_id: ITEM_ID,
         p_action: "edit_approve",
+        p_idempotency_key: crypto.randomUUID(),
         p_reviewer_note: null,
         p_edited_fields: editedFields,
       });
@@ -304,6 +314,7 @@ describe("submit_review_action: publish-time evidence requirement", () => {
       const { error } = await primaryClient.rpc("submit_review_action", {
         p_research_item_id: ITEM_ID,
         p_action: "approve",
+        p_idempotency_key: crypto.randomUUID(),
         p_reviewer_note: null,
         p_edited_fields: null,
       });
@@ -337,6 +348,7 @@ describe("submit_review_action: reviewer-gate-first ordering", () => {
     const { error } = await nonreviewerClient.rpc("submit_review_action", {
       p_research_item_id: researchItemId,
       p_action: action,
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -349,6 +361,7 @@ describe("submit_review_action: reviewer-gate-first ordering", () => {
     const { error } = await inactiveClient.rpc("submit_review_action", {
       p_research_item_id: researchItemId,
       p_action: action,
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: null,
       p_edited_fields: null,
     });
@@ -438,6 +451,7 @@ describe("submit_review_action: dispute on an originally-published seed signal",
     const { error } = await primaryClient.rpc("submit_review_action", {
       p_research_item_id: ITEM_ID,
       p_action: "mark_disputed",
+      p_idempotency_key: crypto.randomUUID(),
       p_reviewer_note: "Integration test dispute.",
       p_edited_fields: null,
     });
