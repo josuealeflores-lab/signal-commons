@@ -77,14 +77,16 @@ Production verification instead uses these fixture-free, mostly read-only checks
 
 ## Production reviewer activation checklist (manual, for later — a separate, production-touching gate)
 
-Production has zero real, loginable reviewer accounts today — only the inactive Demo Baseline Reviewer, which cannot log in. **Production reviewer activation is explicitly not part of M11 Phase A, and not part of Phase B's code merge either — it is its own separate, final, explicitly-approved step (`docs/DECISIONS.md` D-100).** Every box below must be true before a real reviewer account is created:
+Production has zero real, loginable reviewer accounts today — only the inactive Demo Baseline Reviewer, which cannot log in. **Production reviewer activation is explicitly not part of M11 Phase A, and not part of Phase B's code merge either — it is its own separate, final, explicitly-approved step (`docs/DECISIONS.md` D-100, D-101).** Every box below must be true before a real reviewer account is created:
 
-- [ ] M11 Phase A merged (reviewer-gate helper extraction, hermetic tests, this checklist, `docs/REVIEWER_RUNBOOK.md`, the observability and key-rotation sections below).
-- [ ] M11 Phase B merged (idempotency keys + rate limiting on `submit_review_action`/`record_copilot_analysis`, per D-100).
-- [ ] Phase B's migration applied to the production Supabase project.
-- [ ] Phase B's code deployed to production (Vercel).
-- [ ] Leaked-password protection **verified live**, directly against the production Supabase project/dashboard (or the Supabase advisors MCP tool) — **never inferred from this document or `docs/READINESS_REVIEW.md`**, since a setting recorded as disabled at some point in the past could have changed since.
+- [x] M11 Phase A merged (reviewer-gate helper extraction, hermetic tests, this checklist, `docs/REVIEWER_RUNBOOK.md`, the observability and key-rotation sections below).
+- [x] M11 Phase B merged (idempotency keys + rate limiting on `submit_review_action`/`record_copilot_analysis`, per D-100).
+- [x] Phase B's migration applied to the production Supabase project — verified: 8/8 migrations present, `idempotency_keys` table/RLS/grants and both RPCs' new signatures confirmed live against production.
+- [x] Phase B's code deployed to production (Vercel, deployed from `main`).
+- [ ] **Leaked-password protection — currently blocked by Supabase plan tier, not yet complete.** Confirmed live (via the Supabase advisors tool) still disabled; the project's Supabase organization is on the Free plan, which does not support this feature (Pro Plan or above required). Per D-101, this is no longer a blocker to M11's own technical completion, but remains required before a real reviewer is activated. Resolve via one of: (1) upgrade the Supabase plan and verify this setting live in production, or (2) a separate decision record with explicit compensating controls and Cowork/Opus review — (1) is the preferred, expected path; (2) is a deliberate fallback, not a routine alternative.
 - [ ] The remaining steps below completed.
+
+**M11 technical work (Phase A + Phase B) and production schema/code alignment are both complete as of D-101.** The sole remaining item blocking real reviewer activation is the leaked-password-protection line above.
 
 **Reviewer activation is independent of AI activation (M12).** A real reviewer can be activated and can perform full human review — approve, edit-and-approve, reject, mark disputed, reopen — entirely through the Phase A/B-hardened path while Copilot and the queue digest continue to show "AI features are not configured in this environment." `ANTHROPIC_API_KEY` is **not required** for a human-only reviewer activation. **No production AI activation is authorized as part of M11 (Phase A or Phase B).**
 
@@ -144,4 +146,5 @@ Do not activate production AI as part of M9 — M9's own scope (`docs/DECISIONS.
 ## Known, accepted, non-blocking follow-ups
 
 - **`middleware.ts` → `proxy.ts` rename** — deferred; see `docs/DECISIONS.md` D-080. Next.js 16.2.10's deprecation warning for the legacy filename is cosmetic and non-blocking.
-- **Rate limiting and idempotency keys on mutation endpoints** (`submit_review_action`, `record_copilot_analysis`) — promoted from an accepted gap to **blocking for M11** (`docs/DECISIONS.md` D-098/D-100), no longer "non-blocking." The design is fully specified in D-100 (a new `idempotency_keys` table, per-reviewer rate caps); implementation is **M11 Phase B**, not yet merged as of this Phase A update — retained in this list only until Phase B closes it.
+- ~~**Rate limiting and idempotency keys on mutation endpoints**~~ — **closed.** M11 Phase B (`docs/DECISIONS.md` D-100) implemented the `idempotency_keys` table and per-reviewer rate caps on `submit_review_action`/`record_copilot_analysis`; merged, `test:db`-verified (174/174), and applied to production. Retained here, struck through, only as a historical record of the original finding.
+- **Leaked-password protection disabled** — not closed; see the production reviewer activation checklist above and `docs/DECISIONS.md` D-101. Currently blocked by the Supabase organization's Free plan tier, not a code/migration matter.
