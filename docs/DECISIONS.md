@@ -1087,3 +1087,29 @@ What it does **not** protect: a reviewer's own cross-invocation double-submit (e
 If a future milestone introduces a REST API or any client with its own retry logic, that flow may need to accept and honor a client-supplied, client-stable idempotency key instead of (or in addition to) generating one server-side — noted here as a possible future refinement, not a current gap in the Server Action path.
 
 **Addendum note — `idempotency_keys` retention:** the 24-hour retention window described above still has no scheduled cleanup job in M11; manual cleanup (per `docs/DEPLOYMENT.md`) remains acceptable for the initial low-volume single-reviewer phase. Scheduled cleanup should be added before higher-volume production use — flagged here as a follow-up, not solved by this addendum.
+
+### D-101 — Defer leaked-password protection to production reviewer activation gate
+
+**Current state at the time of this entry:** M11 Phase A is complete, merged, deployed, and locally cleaned up. M11 Phase B is complete — merged, deployed, applied to dev/CI with `test:db` passing 174/174, and applied to production, closing the production schema/code drift described in the readiness plan that preceded this decision. Production now has all 8 migrations, matching dev/CI's schema exactly (verified: `idempotency_keys` table shape, RLS-enabled/no-policy, both RPCs' new signatures, grants/revokes). Production's active reviewer count remains 0; no reviewer has been created or activated; `ANTHROPIC_API_KEY` remains unprovisioned; production AI remains inactive; no real connector publishing has occurred; all public content remains fictional demo data only. `corrections@signal-commons.org` and `signal-commons.org` are both live, unchanged from M10.
+
+**Choice:**
+- Leaked-password protection **remains required before any real production reviewer account is created or activated** — this requirement is not weakened or removed.
+- However, it is **no longer treated as a blocker to considering M11's technical work complete.** M11 Phase A and Phase B are both done; the outstanding leaked-password-protection item moves to sit exclusively at the **Production Reviewer Activation Gate**, not at M11's own completion.
+- **Production reviewer activation remains blocked while `active_reviewer_count = 0` is the deliberate, required state** — this entry changes nothing about that standing gate.
+- **The project will not upgrade its Supabase plan solely to close this gate before there is evidence of public/product value.** Read-only verification this session confirmed leaked-password protection is unavailable on the organization's current Free plan (Supabase's own documentation states it requires Pro Plan or above) — paying for a plan upgrade purely to satisfy this one advisory finding, with 0 real reviewers and 0 public traffic depending on it yet, is not justified at this stage.
+- **Before the first real reviewer is activated, the owner must do one of:**
+  1. Upgrade the Supabase plan and verify leaked-password protection live in the production dashboard (never inferred from this or any other document — the same live-verification requirement D-100 already established), or
+  2. Draft a separate decision record naming explicit compensating controls, reviewed by Cowork/Opus, before activating a reviewer without this protection enabled.
+- **Option 2 is not the default path.** The preferred, expected path remains enabling leaked-password protection (option 1) before any real reviewer is activated. Option 2 exists only as a documented, deliberately-harder-to-reach fallback, not a routine alternative.
+
+**Rationale:**
+- Supabase leaked-password protection is not available on the project's current Free organization plan (confirmed via `get_organization`, plan `"free"`).
+- Paying for a plan upgrade is not justified until the project has demonstrated enough value to warrant the recurring cost — a judgment call consistent with this project's existing "no new dependency/cost without justification" discipline (`CLAUDE.md`'s scope rules).
+- With 0 active production reviewers, there is no reviewer password currently exposed to the risk this control mitigates — the control protects reviewer credentials specifically, and none exist yet in a loginable, active state.
+- Public demo pages require no login and are entirely unaffected by this gap.
+- Production AI remains inactive, and real public record publishing is not happening yet — neither depends on or is affected by this decision.
+- Therefore, deferring the paid-plan security setting is acceptable specifically because, and only for as long as, production reviewer activation remains blocked at `active_reviewer_count = 0`. The two facts are load-bearing together: this decision does not stand on its own if reviewer activation were to proceed first.
+
+**Non-scope (unchanged, reaffirmed):** this entry does not activate a reviewer, create reviewer credentials, provision `ANTHROPIC_API_KEY`, activate production AI, change Supabase billing/plan, change Vercel or env settings, alter the Phase B migration or either RPC, run any connector, or publish any real record. It is a docs-only re-sequencing of one gate's location, nothing more.
+
+**Consequence:** `docs/DEPLOYMENT.md`'s reviewer-activation checklist is updated to reflect M11 technical work (Phase A + Phase B) as complete and production schema/code alignment as complete, while explicitly keeping leaked-password protection as a required, currently-blocked item — now described as blocked by Supabase plan tier, with the two-option resolution path above, rather than described as a routine "verify live" step alongside the others. No code, migration, Supabase, Vercel, or env change is authorized by this entry.
